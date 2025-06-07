@@ -1,5 +1,5 @@
 // ========================================
-// GOSOK ANGKA BACKEND - PRODUCTION READY
+// GOSOK ANGKA BACKEND - PRODUCTION READY WITH SOCKET.IO
 // ========================================
 
 const express = require('express');
@@ -7,16 +7,34 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const http = require('http');
+const socketIO = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// Setup Socket.io
+const io = socketIO(server, {
+    cors: {
+        origin: [
+            'https://gosokangkahoki.com',
+            'https://www.gosokangkahoki.com',
+            'http://localhost:3000',
+            'http://localhost:5000'
+        ],
+        credentials: true
+    }
+});
 
 // CORS Configuration
 app.use(cors({
     origin: [
         'https://gosokangkahoki.com',
         'https://www.gosokangkahoki.com',
-        'http://localhost:3000' // untuk development
+        'http://localhost:3000'
     ],
     credentials: true
 }));
@@ -106,15 +124,18 @@ const gameSettingsSchema = new mongoose.Schema({
     isGameActive: { type: Boolean, default: true }
 });
 
-// Chat Schema
+// Updated Chat Schema with IP and User Agent
 const chatSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userIP: { type: String },
+    userAgent: { type: String },
     messages: [{
         from: { type: String, enum: ['user', 'admin'], required: true },
         message: { type: String, required: true },
         timestamp: { type: Date, default: Date.now },
         isRead: { type: Boolean, default: false }
-    }]
+    }],
+    lastActivity: { type: Date, default: Date.now }
 });
 
 // Create Models
@@ -125,6 +146,239 @@ const Scratch = mongoose.model('Scratch', scratchSchema);
 const Winner = mongoose.model('Winner', winnerSchema);
 const GameSettings = mongoose.model('GameSettings', gameSettingsSchema);
 const Chat = mongoose.model('Chat', chatSchema);
+
+// ========================================
+// SOCKET.IO CONFIGURATION
+// ========================================
+
+// Socket.io Authentication Middleware
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth.token;
+        if (!token) {
+            return next(new Error('Authentication error'));
+        }
+        
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId = decoded.userId;
+        socket.userType = decoded.userType;
+        next();
+    } catch (err) {
+        next(new Error('Authentication error'));
+    }
+});
+
+// Socket.io Connection Handler
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.userId);
+    
+    // Join user's personal room
+    socket.join(`user-${socket.userId}`);
+    
+    // If admin, join admin room
+    if (socket.userType === 'admin') {
+        socket.join('admin-room');
+        
+        // Send all active chats to admin
+        socket.on('admin:get-active-chats', async () => {
+            try {
+                const activeChats = await Chat.find({ 
+                    lastActivity: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                })
+                .populate('userId', 'name email phoneNumber status lastScratchDate')
+                .sort({ lastActivity: -1 });
+                
+                const formattedChats = activeChats.map(chat => {
+                    const lastMessage = chat.messages[chat.messages.length - 1];
+                    const unreadCount = chat.messages.filter(m => m.from === 'user' && !m.isRead).length;
+                    
+                    return {
+                        _id: chat._id,
+                        user: {
+                            ...chat.userId.toObject(),
+                            userIP: chat.userIP,
+                            userAgent: chat.userAgent,
+                            isOnline: io.sockets.adapter.rooms.has(`user-${chat.userId._id}`)
+                        },
+                        lastMessage: lastMessage ? {
+                            content: lastMessage.message,
+                            timestamp: lastMessage.timestamp,
+                            from: lastMessage.from
+                        } : null,
+                        unreadCount,
+                        lastActivity: chat.lastActivity
+                    };
+                });
+                
+                socket.emit('admin:active-chats', formattedChats);
+            } catch (error) {
+                socket.emit('error', { message: 'Failed to load chats' });
+            }
+        });
+    }
+    
+    // Handle user sending message
+    socket.on('chat:send-message', async (data) => {
+        try {
+            const { message, userIP, userAgent } = data;
+            
+            // Find or create chat
+            let chat = await Chat.findOne({ userId: socket.userId });
+            if (!chat) {
+                chat = new Chat({ 
+                    userId: socket.userId, 
+                    messages: [],
+                    userIP: userIP || socket.handshake.address,
+                    userAgent: userAgent || socket.handshake.headers['user-agent']
+                });
+            }
+            
+            // Update IP and user agent if changed
+            if (userIP && chat.userIP !== userIP) {
+                chat.userIP = userIP;
+            }
+            if (userAgent && chat.userAgent !== userAgent) {
+                chat.userAgent = userAgent;
+            }
+            
+            // Add message
+            const newMessage = {
+                from: socket.userType === 'admin' ? 'admin' : 'user',
+                message: message.trim(),
+                timestamp: new Date(),
+                isRead: false
+            };
+            
+            chat.messages.push(newMessage);
+            chat.lastActivity = new Date();
+            await chat.save();
+            
+            // Get user details
+            const user = await User.findById(socket.userId)
+                .select('name email phoneNumber');
+            
+            // Emit to sender
+            socket.emit('chat:message-sent', {
+                ...newMessage,
+                _id: chat.messages[chat.messages.length - 1]._id
+            });
+            
+            // Emit to recipient
+            if (socket.userType === 'admin') {
+                // Admin sending to user
+                io.to(`user-${data.targetUserId}`).emit('chat:new-message', {
+                    ...newMessage,
+                    chatId: chat._id
+                });
+            } else {
+                // User sending to admin
+                io.to('admin-room').emit('chat:new-message', {
+                    ...newMessage,
+                    chatId: chat._id,
+                    user: user,
+                    userIP: chat.userIP,
+                    userAgent: chat.userAgent
+                });
+            }
+        } catch (error) {
+            console.error('Send message error:', error);
+            socket.emit('error', { message: 'Failed to send message' });
+        }
+    });
+    
+    // Handle admin sending message to specific user
+    socket.on('admin:send-message', async (data) => {
+        try {
+            const { userId, message } = data;
+            
+            // Find or create chat
+            let chat = await Chat.findOne({ userId });
+            if (!chat) {
+                chat = new Chat({ userId, messages: [] });
+            }
+            
+            const newMessage = {
+                from: 'admin',
+                message: message.trim(),
+                timestamp: new Date(),
+                isRead: false
+            };
+            
+            chat.messages.push(newMessage);
+            chat.lastActivity = new Date();
+            await chat.save();
+            
+            // Emit to admin
+            socket.emit('admin:message-sent', {
+                ...newMessage,
+                _id: chat.messages[chat.messages.length - 1]._id,
+                userId
+            });
+            
+            // Emit to user
+            io.to(`user-${userId}`).emit('chat:new-message', {
+                ...newMessage,
+                chatId: chat._id
+            });
+        } catch (error) {
+            socket.emit('error', { message: 'Failed to send message' });
+        }
+    });
+    
+    // Handle mark as read
+    socket.on('chat:mark-read', async (data) => {
+        try {
+            const { chatId } = data;
+            
+            await Chat.updateOne(
+                { _id: chatId },
+                { $set: { 'messages.$[elem].isRead': true } },
+                { arrayFilters: [{ 'elem.from': { $ne: socket.userType } }] }
+            );
+            
+            socket.emit('chat:marked-read', { chatId });
+            
+            // Notify admin about read status
+            if (socket.userType === 'user') {
+                io.to('admin-room').emit('chat:messages-read', {
+                    userId: socket.userId,
+                    chatId
+                });
+            }
+        } catch (error) {
+            socket.emit('error', { message: 'Failed to mark as read' });
+        }
+    });
+    
+    // Handle typing indicators
+    socket.on('chat:typing', (data) => {
+        if (socket.userType === 'admin') {
+            io.to(`user-${data.targetUserId}`).emit('chat:user-typing', {
+                isTyping: data.isTyping,
+                from: 'admin'
+            });
+        } else {
+            io.to('admin-room').emit('chat:user-typing', {
+                isTyping: data.isTyping,
+                userId: socket.userId,
+                from: 'user'
+            });
+        }
+    });
+    
+    // Handle disconnect
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.userId);
+        
+        // Notify admins if user disconnected
+        if (socket.userType === 'user') {
+            io.to('admin-room').emit('user:offline', {
+                userId: socket.userId,
+                timestamp: new Date()
+            });
+        }
+    });
+});
 
 // ========================================
 // MIDDLEWARE
@@ -164,6 +418,10 @@ app.get('/', (req, res) => {
     res.json({
         message: 'Gosok Angka Backend API',
         version: '1.0.0',
+        features: {
+            realtime: 'Socket.io enabled',
+            chat: 'Live chat support'
+        },
         endpoints: {
             auth: '/api/auth',
             user: '/api/user',
@@ -342,24 +600,20 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         let prize = null;
         let winner = null;
         
-        if (scratchNumber === settings.winningNumber) {
-            // Find available prize with same winning number
-            prize = await Prize.findOne({ 
-                winningNumber: scratchNumber,
-                stock: { $gt: 0 },
-                isActive: true
-            });
+        // Check against all active prizes
+        const activePrize = await Prize.findOne({ 
+            winningNumber: scratchNumber,
+            stock: { $gt: 0 },
+            isActive: true
+        });
+        
+        if (activePrize) {
+            isWin = true;
+            prize = activePrize;
             
-            if (prize) {
-                isWin = true;
-                
-                // Decrease stock
-                prize.stock -= 1;
-                await prize.save();
-                
-                // Generate claim code
-                const claimCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-            }
+            // Decrease stock
+            prize.stock -= 1;
+            await prize.save();
         }
         
         // Create scratch record
@@ -578,8 +832,8 @@ app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, as
     }
 });
 
-// Get Game Settings
-app.get('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) => {
+// Get Game Settings - PUBLIC ENDPOINT (untuk frontend game)
+app.get('/api/admin/game-settings', async (req, res) => {
     try {
         let settings = await GameSettings.findOne();
         
@@ -642,10 +896,10 @@ app.post('/api/admin/generate-winning-number', verifyToken, verifyAdmin, async (
     }
 });
 
-// Get All Prizes
-app.get('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
+// Get All Prizes - PUBLIC ENDPOINT (untuk frontend game)
+app.get('/api/admin/prizes', async (req, res) => {
     try {
-        const prizes = await Prize.find().sort({ createdAt: -1 });
+        const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
         res.json(prizes);
     } catch (error) {
         console.error('Get prizes error:', error);
@@ -808,38 +1062,73 @@ app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // ========================================
-// ROUTES - CHAT
+// ROUTES - CHAT (UPDATED WITH SOCKET SUPPORT)
 // ========================================
 
-// Get Chat Users (Admin)
-app.get('/api/admin/chat/users', verifyToken, verifyAdmin, async (req, res) => {
+// Get Chat History with Socket Support
+app.get('/api/user/chat/history', verifyToken, async (req, res) => {
     try {
-        const chats = await Chat.find()
-            .populate('userId', 'name email')
-            .sort({ 'messages.timestamp': -1 });
-            
-        const chatUsers = chats.map(chat => {
-            const lastMessage = chat.messages[chat.messages.length - 1];
-            const unreadCount = chat.messages.filter(
-                m => m.from === 'user' && !m.isRead
-            ).length;
-            
-            return {
-                id: chat.userId._id,
-                name: chat.userId.name,
-                lastMessage: lastMessage?.message || '',
-                unreadCount
-            };
-        });
+        const chat = await Chat.findOne({ userId: req.userId });
         
-        res.json(chatUsers);
+        if (!chat) {
+            return res.json({ messages: [], userIP: req.ip });
+        }
+        
+        // Update user IP if changed
+        if (chat.userIP !== req.ip) {
+            chat.userIP = req.ip;
+            await chat.save();
+        }
+        
+        res.json({
+            messages: chat.messages,
+            userIP: chat.userIP,
+            chatId: chat._id
+        });
     } catch (error) {
-        console.error('Get chat users error:', error);
+        console.error('Get user chat error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Get Chat History
+// Admin Get All Active Chats
+app.get('/api/admin/chat/active', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const activeChats = await Chat.find({ 
+            lastActivity: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+        })
+        .populate('userId', 'name email phoneNumber status lastScratchDate')
+        .sort({ lastActivity: -1 });
+        
+        const formattedChats = activeChats.map(chat => {
+            const lastMessage = chat.messages[chat.messages.length - 1];
+            const unreadCount = chat.messages.filter(m => m.from === 'user' && !m.isRead).length;
+            
+            return {
+                _id: chat._id,
+                user: {
+                    ...chat.userId.toObject(),
+                    userIP: chat.userIP,
+                    userAgent: chat.userAgent
+                },
+                lastMessage: lastMessage ? {
+                    content: lastMessage.message,
+                    timestamp: lastMessage.timestamp,
+                    from: lastMessage.from
+                } : null,
+                unreadCount,
+                lastActivity: chat.lastActivity
+            };
+        });
+        
+        res.json(formattedChats);
+    } catch (error) {
+        console.error('Get active chats error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get Chat History (Admin)
 app.get('/api/admin/chat/history/:userId', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
@@ -861,80 +1150,6 @@ app.get('/api/admin/chat/history/:userId', verifyToken, verifyAdmin, async (req,
         res.json(chat.messages);
     } catch (error) {
         console.error('Get chat history error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Send Chat Message (Admin)
-app.post('/api/admin/chat/send', verifyToken, verifyAdmin, async (req, res) => {
-    try {
-        const { userId, message } = req.body;
-        
-        if (!message || !message.trim()) {
-            return res.status(400).json({ error: 'Message tidak boleh kosong' });
-        }
-        
-        let chat = await Chat.findOne({ userId });
-        
-        if (!chat) {
-            chat = new Chat({ userId, messages: [] });
-        }
-        
-        chat.messages.push({
-            from: 'admin',
-            message: message.trim()
-        });
-        
-        await chat.save();
-        
-        res.json({ message: 'Message sent' });
-    } catch (error) {
-        console.error('Send admin message error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Send Chat Message (User)
-app.post('/api/user/chat/send', verifyToken, async (req, res) => {
-    try {
-        const { message } = req.body;
-        
-        if (!message || !message.trim()) {
-            return res.status(400).json({ error: 'Message tidak boleh kosong' });
-        }
-        
-        let chat = await Chat.findOne({ userId: req.userId });
-        
-        if (!chat) {
-            chat = new Chat({ userId: req.userId, messages: [] });
-        }
-        
-        chat.messages.push({
-            from: 'user',
-            message: message.trim()
-        });
-        
-        await chat.save();
-        
-        res.json({ message: 'Message sent' });
-    } catch (error) {
-        console.error('Send user message error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Get User Chat History
-app.get('/api/user/chat/history', verifyToken, async (req, res) => {
-    try {
-        const chat = await Chat.findOne({ userId: req.userId });
-        
-        if (!chat) {
-            return res.json([]);
-        }
-        
-        res.json(chat.messages);
-    } catch (error) {
-        console.error('Get user chat error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1050,15 +1265,16 @@ app.use((err, req, res, next) => {
 });
 
 // ========================================
-// START SERVER
+// START SERVER WITH SOCKET.IO
 // ========================================
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📡 API URL: http://localhost:${PORT}`);
+    console.log(`🔌 Socket.io enabled for real-time chat`);
     console.log(`🌐 Ready for production deployment`);
     console.log('========================================');
     
