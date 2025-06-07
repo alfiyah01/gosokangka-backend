@@ -13,7 +13,11 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-    origin: '*', // Untuk testing, nanti ganti dengan domain frontend
+    origin: [
+        'https://gosokangkahoki.com',
+        'https://www.gosokangkahoki.com',
+        'http://localhost:3000' // untuk development
+    ],
     credentials: true
 }));
 
