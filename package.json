@@ -1,7 +1,7 @@
 {
   "name": "gosokangka-backend",
   "version": "1.0.0",
-  "description": "Backend API for Gosok Angka - Scratch Card Game Application",
+  "description": "Backend API for Gosok Angka - Scratch Card Game Application with Realtime Chat",
   "main": "server.js",
   "engines": {
     "node": ">=14.0.0",
@@ -18,7 +18,9 @@
     "game",
     "mongodb",
     "express",
-    "nodejs"
+    "nodejs",
+    "socket.io",
+    "realtime-chat"
   ],
   "author": "Yusrizal",
   "license": "ISC",
@@ -28,7 +30,8 @@
     "cors": "^2.8.5",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "socket.io": "^4.6.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
