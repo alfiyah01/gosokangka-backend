@@ -50,35 +50,152 @@ connectDB();
 // ========================================
 // CORS CONFIGURATION - UPDATED FOR PRODUCTION
 // ========================================
+// ========================================
+// PERBAIKAN CORS CONFIGURATION - LANGSUNG PAKAI!
+// ========================================
+
+// Ganti bagian CORS di server.js Anda dengan kode ini:
+
 const allowedOrigins = [
-    'https://gosokangkahoki.netlify.app',     // Netlify domain
-    'https://gosokangkahoki.com',             // Custom domain
-    'https://www.gosokangkahoki.com',         // Custom domain dengan www
-    'http://gosokangkahoki.com',              // HTTP version (just in case)
-    'http://www.gosokangkahoki.com',         // HTTP dengan www
+    // Netlify domains (tambahkan semua kemungkinan)
+    'https://gosokangkahoki.netlify.app',     
+    'https://www.gosokangkahoki.netlify.app',
+    /^https:\/\/.*--gosokangkahoki\.netlify\.app$/,  // Preview URLs
+    /^https:\/\/.*\.gosokangkahoki\.netlify\.app$/,  // Branch deploys
+    
+    // Custom domains
+    'https://gosokangkahoki.com',             
+    'https://www.gosokangkahoki.com',         
+    'http://gosokangkahoki.com',              
+    'http://www.gosokangkahoki.com',         
+    
+    // Railway backend
     'https://gosokangka-backend-production.up.railway.app',
+    
+    // Development
     'http://localhost:3000',
     'http://localhost:5000',
     'http://127.0.0.1:3000',
-    'http://127.0.0.1:5000'
+    'http://127.0.0.1:5000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080'
 ];
 
+// ✅ PERBAIKAN CORS - Lebih permissive untuk debugging
 app.use(cors({
     origin: function(origin, callback) {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
+        console.log('🔍 CORS Debug - Request origin:', origin);
         
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.log('❌ CORS blocked origin:', origin);
-            callback(new Error('Not allowed by CORS'));
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) {
+            console.log('✅ CORS: Allowing request with no origin');
+            return callback(null, true);
         }
+        
+        // Check against allowed origins (strings)
+        if (allowedOrigins.includes(origin)) {
+            console.log('✅ CORS: Origin allowed (exact match):', origin);
+            return callback(null, true);
+        }
+        
+        // Check against allowed origins (regex patterns)
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return false;
+        });
+        
+        if (isAllowed) {
+            console.log('✅ CORS: Origin allowed (regex match):', origin);
+            return callback(null, true);
+        }
+        
+        // ⚠️ TEMPORARY: Allow all .netlify.app domains for debugging
+        if (origin.includes('.netlify.app')) {
+            console.log('⚠️ CORS: Temporarily allowing Netlify domain:', origin);
+            return callback(null, true);
+        }
+        
+        // Block unauthorized origins
+        console.log('❌ CORS: Origin blocked:', origin);
+        const error = new Error(`CORS blocked: ${origin} not allowed`);
+        error.status = 403;
+        callback(error);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers'
+    ],
+    optionsSuccessStatus: 200 // For legacy browser support
 }));
+
+// ✅ TAMBAHAN: Handle preflight requests
+app.options('*', (req, res) => {
+    console.log('🔍 Preflight request from:', req.headers.origin);
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', true);
+    res.sendStatus(200);
+});
+
+// ✅ PERBAIKAN Socket.IO CORS
+const io = socketIO(server, {
+    cors: {
+        origin: function(origin, callback) {
+            // Same logic as Express CORS
+            if (!origin) return callback(null, true);
+            
+            if (allowedOrigins.includes(origin) || 
+                allowedOrigins.some(allowed => allowed instanceof RegExp && allowed.test(origin)) ||
+                origin.includes('.netlify.app')) {
+                return callback(null, true);
+            }
+            
+            callback(new Error('Socket.IO CORS blocked'));
+        },
+        credentials: true,
+        methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true  // Support older clients
+});
+
+// ✅ LOGGING untuk debugging
+app.use((req, res, next) => {
+    console.log(`🔍 ${req.method} ${req.path} from origin: ${req.headers.origin || 'NO-ORIGIN'}`);
+    next();
+});
+
+// ✅ GLOBAL ERROR HANDLER untuk CORS
+app.use((err, req, res, next) => {
+    if (err.message && err.message.includes('CORS')) {
+        console.error('❌ CORS Error:', err.message);
+        console.error('❌ Request origin:', req.headers.origin);
+        console.error('❌ Request headers:', req.headers);
+        
+        return res.status(403).json({ 
+            error: 'CORS Error',
+            message: 'Origin not allowed',
+            origin: req.headers.origin,
+            allowedOrigins: allowedOrigins.filter(o => typeof o === 'string')
+        });
+    }
+    
+    console.error('❌ Global error:', err);
+    res.status(500).json({ 
+        error: 'Something went wrong!',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+});
 
 // ========================================
 // SOCKET.IO SETUP - FIXED
