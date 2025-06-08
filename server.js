@@ -51,6 +51,7 @@ connectDB();
 // CORS CONFIGURATION - UPDATED FOR PRODUCTION
 // ========================================
 const allowedOrigins = [
+    'https://gosokangkahoki.netlify.app',
     'https://gosokangkahoki.com',
     'https://www.gosokangkahoki.com',
     'http://gosokangkahoki.com',
