@@ -880,6 +880,40 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
+// Change admin password
+app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ error: 'Password lama dan baru harus diisi' });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+        }
+        
+        const admin = await Admin.findById(req.userId);
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin tidak ditemukan' });
+        }
+        
+        const isValidPassword = await bcrypt.compare(oldPassword, admin.password);
+        if (!isValidPassword) {
+            return res.status(400).json({ error: 'Password lama salah' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        admin.password = hashedPassword;
+        await admin.save();
+        
+        res.json({ message: 'Password berhasil diubah' });
+    } catch (error) {
+        console.error('Change admin password error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const today = new Date();
@@ -919,15 +953,27 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
 
 app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10, search = '' } = req.query;
         
-        const users = await User.find()
+        // Build search query
+        let query = {};
+        if (search) {
+            query = {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } },
+                    { phoneNumber: { $regex: search, $options: 'i' } }
+                ]
+            };
+        }
+        
+        const users = await User.find(query)
             .select('-password')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .sort({ createdAt: -1 });
             
-        const total = await User.countDocuments();
+        const total = await User.countDocuments(query);
         
         res.json({
             users,
@@ -939,6 +985,43 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
         });
     } catch (error) {
         console.error('Get users error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get user detail
+app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const user = await User.findById(userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
+        // Get user's scratch history
+        const scratches = await Scratch.find({ userId })
+            .populate('prizeId')
+            .sort({ scratchDate: -1 })
+            .limit(10);
+        
+        // Get user's wins
+        const wins = await Winner.find({ userId })
+            .populate('prizeId')
+            .sort({ scratchDate: -1 });
+        
+        res.json({
+            user,
+            scratches,
+            wins,
+            stats: {
+                totalScratches: user.scratchCount || 0,
+                totalWins: user.winCount || 0,
+                winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0
+            }
+        });
+    } catch (error) {
+        console.error('Get user detail error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1163,15 +1246,126 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
 
 app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) => {
     try {
+        const { limit = 20 } = req.query;
+        
         const winners = await Winner.find()
             .populate('userId', 'name email')
             .populate('prizeId', 'name value')
             .sort({ scratchDate: -1 })
-            .limit(20);
+            .limit(parseInt(limit));
             
         res.json(winners);
     } catch (error) {
         console.error('Get winners error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get all scratch history
+app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { page = 1, limit = 50 } = req.query;
+        
+        const scratches = await Scratch.find()
+            .populate('userId', 'name email phoneNumber')
+            .populate('prizeId', 'name value')
+            .sort({ scratchDate: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            
+        // Return as array for frontend compatibility
+        res.json(scratches);
+    } catch (error) {
+        console.error('Get scratch history error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Analytics endpoints
+app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { period = '7days' } = req.query;
+        
+        let dateFilter = {};
+        const now = new Date();
+        
+        switch(period) {
+            case 'today':
+                dateFilter = {
+                    $gte: new Date(now.setHours(0,0,0,0))
+                };
+                break;
+            case '7days':
+                dateFilter = {
+                    $gte: new Date(now.setDate(now.getDate() - 7))
+                };
+                break;
+            case '30days':
+                dateFilter = {
+                    $gte: new Date(now.setDate(now.getDate() - 30))
+                };
+                break;
+            case 'all':
+            default:
+                // No date filter
+                break;
+        }
+        
+        const scratchQuery = period === 'all' ? {} : { scratchDate: dateFilter };
+        
+        const [totalScratches, totalWins, totalPrizeValue] = await Promise.all([
+            Scratch.countDocuments(scratchQuery),
+            Scratch.countDocuments({ ...scratchQuery, isWin: true }),
+            Winner.aggregate([
+                { $match: period === 'all' ? {} : { scratchDate: dateFilter } },
+                { $lookup: {
+                    from: 'prizes',
+                    localField: 'prizeId',
+                    foreignField: '_id',
+                    as: 'prize'
+                }},
+                { $unwind: '$prize' },
+                { $group: {
+                    _id: null,
+                    total: { $sum: '$prize.value' }
+                }}
+            ])
+        ]);
+        
+        const winRate = totalScratches > 0 ? ((totalWins / totalScratches) * 100).toFixed(2) : 0;
+        
+        res.json({
+            period,
+            totalScratches,
+            totalWins,
+            winRate: parseFloat(winRate),
+            totalPrizeValue: totalPrizeValue[0]?.total || 0
+        });
+    } catch (error) {
+        console.error('Get analytics error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// User analytics
+app.get('/api/admin/analytics/users', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+        
+        const [totalUsers, activeUsers, newUsers] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ lastScratchDate: { $gte: thirtyDaysAgo } }),
+            User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+        ]);
+        
+        res.json({
+            totalUsers,
+            activeUsers,
+            newUsers
+        });
+    } catch (error) {
+        console.error('Get user analytics error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1378,8 +1572,10 @@ app.use((req, res) => {
             'GET /api/public/prizes',
             'GET /api/public/game-settings',
             'POST /api/admin/login',
+            'POST /api/admin/change-password',
             'GET /api/admin/dashboard',
             'GET /api/admin/users',
+            'GET /api/admin/users/:userId',
             'POST /api/admin/users/:userId/reset-password',
             'GET /api/admin/game-settings',
             'PUT /api/admin/game-settings',
@@ -1387,7 +1583,10 @@ app.use((req, res) => {
             'POST /api/admin/prizes',
             'PUT /api/admin/prizes/:prizeId',
             'DELETE /api/admin/prizes/:prizeId',
-            'GET /api/admin/recent-winners'
+            'GET /api/admin/recent-winners',
+            'GET /api/admin/scratch-history',
+            'GET /api/admin/analytics',
+            'GET /api/admin/analytics/users'
         ]
     });
 });
@@ -1421,7 +1620,7 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.1');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
@@ -1431,7 +1630,13 @@ server.listen(PORT, () => {
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
-    console.log(`🆕 New Features:`);
+    console.log(`🆕 New Features V2.1:`);
+    console.log(`   - Admin password change`);
+    console.log(`   - User search functionality`); 
+    console.log(`   - User detail view`);
+    console.log(`   - Complete scratch history`);
+    console.log(`   - Analytics dashboard`);
+    console.log(`   - Win/Loss tracking per user`);
     console.log(`   - Public endpoints for prizes & settings`);
     console.log(`   - Admin password reset for users`);
     console.log(`   - Realtime sync events via Socket.io`);
