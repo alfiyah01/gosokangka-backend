@@ -2,14 +2,20 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install"
+    "buildCommand": "npm install --production",
+    "watchPatterns": [
+      "**/*.js",
+      "**/*.json",
+      "!node_modules/**"
+    ]
   },
   "deploy": {
     "startCommand": "npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "healthcheckPath": "/",
-    "healthcheckTimeout": 30
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 60,
+    "numReplicas": 1
   },
   "envVars": {
     "NODE_ENV": {
@@ -18,5 +24,11 @@
     "PORT": {
       "default": "5000"
     }
+  },
+  "regions": [
+    "us-west1"
+  ],
+  "experimental": {
+    "configVersion": 1
   }
 }
