@@ -1,6 +1,7 @@
 // ========================================
 // GOSOK ANGKA BACKEND - PRODUCTION READY
 // Fixed Version untuk gosokangkahoki.com
+// Updated for Realtime Sync & Better Integration
 // ========================================
 
 const express = require('express');
@@ -141,7 +142,7 @@ app.options('*', (req, res) => {
 });
 
 // ========================================
-// SOCKET.IO SETUP - CLEAN VERSION
+// SOCKET.IO SETUP - ENHANCED FOR REALTIME SYNC
 // ========================================
 const io = socketIO(server, {
     cors: {
@@ -162,6 +163,22 @@ const io = socketIO(server, {
     transports: ['websocket', 'polling'],
     allowEIO3: true
 });
+
+// Global socket manager for broadcasting updates
+const socketManager = {
+    broadcastPrizeUpdate: (data) => {
+        io.emit('prize:updated', data);
+        console.log('📡 Broadcasting prize update:', data.type);
+    },
+    broadcastSettingsUpdate: (data) => {
+        io.emit('settings:updated', data);
+        console.log('📡 Broadcasting settings update');
+    },
+    broadcastUserUpdate: (data) => {
+        io.emit('user:updated', data);
+        console.log('📡 Broadcasting user update:', data.type);
+    }
+};
 
 // Add middleware
 app.use(express.json({ limit: '10mb' }));
@@ -229,7 +246,8 @@ const gameSettingsSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true },
     winProbability: { type: Number, default: 5 },
     maxScratchesPerDay: { type: Number, default: 1 },
-    isGameActive: { type: Boolean, default: true }
+    isGameActive: { type: Boolean, default: true },
+    resetTime: { type: String, default: '00:00' }
 });
 
 const chatSchema = new mongoose.Schema({
@@ -283,7 +301,7 @@ const verifyAdmin = (req, res, next) => {
 };
 
 // ========================================
-// SOCKET.IO HANDLERS
+// SOCKET.IO HANDLERS - ENHANCED
 // ========================================
 
 io.use(async (socket, next) => {
@@ -466,7 +484,7 @@ app.get('/', (req, res) => {
         status: 'Production Ready',
         domain: 'gosokangkahoki.com',
         features: {
-            realtime: 'Socket.io enabled',
+            realtime: 'Socket.io enabled with sync events',
             chat: 'Live chat support', 
             auth: 'Email/Phone login support',
             database: 'MongoDB Atlas connected',
@@ -476,19 +494,38 @@ app.get('/', (req, res) => {
             auth: '/api/auth',
             user: '/api/user', 
             game: '/api/game',
-            admin: '/api/admin'
+            admin: '/api/admin',
+            public: '/api/public'
         },
         timestamp: new Date().toISOString()
     });
 });
 
-// Health check
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        uptime: process.uptime()
+    });
+});
+
+// Alternative health check
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
         timestamp: new Date().toISOString(),
         database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
         uptime: process.uptime()
+    });
+});
+
+// Status endpoint
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -555,9 +592,14 @@ app.post('/api/auth/register', async (req, res) => {
             message: 'Registrasi berhasil',
             token,
             user: {
+                _id: user._id,
                 id: user._id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                scratchCount: user.scratchCount,
+                winCount: user.winCount,
+                status: user.status
             }
         });
     } catch (error) {
@@ -608,9 +650,15 @@ app.post('/api/auth/login', async (req, res) => {
             message: 'Login berhasil',
             token,
             user: {
+                _id: user._id,
                 id: user._id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                scratchCount: user.scratchCount,
+                winCount: user.winCount,
+                status: user.status,
+                lastScratchDate: user.lastScratchDate
             }
         });
     } catch (error) {
@@ -675,6 +723,13 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             
             prize.stock -= 1;
             await prize.save();
+            
+            // Broadcast prize stock update
+            socketManager.broadcastPrizeUpdate({
+                type: 'stock_updated',
+                prizeId: prize._id,
+                newStock: prize.stock
+            });
         }
         
         const scratch = new Scratch({
@@ -738,6 +793,49 @@ app.get('/api/user/history', verifyToken, async (req, res) => {
 });
 
 // ========================================
+// PUBLIC ROUTES (NO AUTH REQUIRED)
+// ========================================
+
+// Get active prizes (for game app)
+app.get('/api/public/prizes', async (req, res) => {
+    try {
+        const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
+        res.json(prizes);
+    } catch (error) {
+        console.error('Get public prizes error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get game settings (for game app)
+app.get('/api/public/game-settings', async (req, res) => {
+    try {
+        let settings = await GameSettings.findOne();
+        
+        if (!settings) {
+            settings = new GameSettings({
+                winningNumber: '1234',
+                winProbability: 5,
+                maxScratchesPerDay: 1,
+                isGameActive: true,
+                resetTime: '00:00'
+            });
+            await settings.save();
+        }
+        
+        // Only return public-safe fields
+        res.json({
+            isGameActive: settings.isGameActive,
+            maxScratchesPerDay: settings.maxScratchesPerDay,
+            resetTime: settings.resetTime
+        });
+    } catch (error) {
+        console.error('Get public settings error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========================================
 // ADMIN ROUTES
 // ========================================
 
@@ -769,9 +867,11 @@ app.post('/api/admin/login', async (req, res) => {
             message: 'Login berhasil',
             token,
             admin: {
+                _id: admin._id,
                 id: admin._id,
                 name: admin.name,
-                username: admin.username
+                username: admin.username,
+                role: admin.role
             }
         });
     } catch (error) {
@@ -831,8 +931,11 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
         
         res.json({
             users,
+            total,
             totalPages: Math.ceil(total / limit),
-            currentPage: page
+            currentPage: parseInt(page),
+            page: parseInt(page),
+            limit: parseInt(limit)
         });
     } catch (error) {
         console.error('Get users error:', error);
@@ -840,7 +943,43 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
-app.get('/api/admin/game-settings', async (req, res) => {
+// New endpoint: Reset user password by admin
+app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { newPassword } = req.body;
+        
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password baru harus minimal 6 karakter' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
+        
+        // Broadcast user update
+        socketManager.broadcastUserUpdate({
+            type: 'password_reset',
+            userId: user._id,
+            adminId: req.userId
+        });
+        
+        res.json({ 
+            message: 'Password berhasil direset',
+            userId: user._id
+        });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
         let settings = await GameSettings.findOne();
         
@@ -849,7 +988,8 @@ app.get('/api/admin/game-settings', async (req, res) => {
                 winningNumber: '1234',
                 winProbability: 5,
                 maxScratchesPerDay: 1,
-                isGameActive: true
+                isGameActive: true,
+                resetTime: '00:00'
             });
             await settings.save();
         }
@@ -863,7 +1003,7 @@ app.get('/api/admin/game-settings', async (req, res) => {
 
 app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { winningNumber, winProbability, maxScratchesPerDay, isGameActive } = req.body;
+        const { winningNumber, winProbability, maxScratchesPerDay, isGameActive, resetTime } = req.body;
         
         if (winningNumber && (winningNumber.length !== 4 || isNaN(winningNumber))) {
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
@@ -871,9 +1011,24 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
         
         const settings = await GameSettings.findOneAndUpdate(
             {},
-            { winningNumber, winProbability, maxScratchesPerDay, isGameActive },
+            { 
+                winningNumber, 
+                winProbability, 
+                maxScratchesPerDay, 
+                isGameActive,
+                resetTime: resetTime || '00:00'
+            },
             { new: true, upsert: true }
         );
+        
+        // Broadcast settings update
+        socketManager.broadcastSettingsUpdate({
+            settings: {
+                isGameActive: settings.isGameActive,
+                maxScratchesPerDay: settings.maxScratchesPerDay,
+                resetTime: settings.resetTime
+            }
+        });
         
         res.json(settings);
     } catch (error) {
@@ -882,6 +1037,18 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
     }
 });
 
+// Get prizes (admin)
+app.get('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const prizes = await Prize.find().sort({ createdAt: -1 });
+        res.json(prizes);
+    } catch (error) {
+        console.error('Get prizes error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Also allow public access to prizes (for compatibility)
 app.get('/api/admin/prizes', async (req, res) => {
     try {
         const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
@@ -910,10 +1077,18 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
             name,
             type,
             value,
-            stock
+            stock,
+            isActive: true
         });
         
         await prize.save();
+        
+        // Broadcast new prize
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_added',
+            prizeData: prize
+        });
+        
         res.status(201).json(prize);
     } catch (error) {
         console.error('Add prize error:', error);
@@ -950,6 +1125,13 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res)
             return res.status(404).json({ error: 'Prize tidak ditemukan' });
         }
         
+        // Broadcast prize update
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_updated',
+            prizeId: prize._id,
+            prizeData: prize
+        });
+        
         res.json(prize);
     } catch (error) {
         console.error('Update prize error:', error);
@@ -965,6 +1147,12 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
         if (!prize) {
             return res.status(404).json({ error: 'Prize tidak ditemukan' });
         }
+        
+        // Broadcast prize deletion
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_deleted',
+            prizeId: prizeId
+        });
         
         res.json({ message: 'Prize berhasil dihapus' });
     } catch (error) {
@@ -1087,7 +1275,8 @@ async function createDefaultAdmin() {
             const admin = new Admin({
                 username: 'admin',
                 password: hashedPassword,
-                name: 'Administrator'
+                name: 'Administrator',
+                role: 'admin'
             });
             
             await admin.save();
@@ -1110,7 +1299,8 @@ async function createDefaultSettings() {
                 winningNumber: '1234',
                 winProbability: 5,
                 maxScratchesPerDay: 1,
-                isGameActive: true
+                isGameActive: true,
+                resetTime: '00:00'
             });
             
             await settings.save();
@@ -1132,21 +1322,24 @@ async function createSamplePrizes() {
                     name: 'iPhone 15 Pro',
                     type: 'physical',
                     value: 20000000,
-                    stock: 2
+                    stock: 2,
+                    isActive: true
                 },
                 {
                     winningNumber: '5678',
                     name: 'Voucher Shopee Rp500.000',
                     type: 'voucher',
                     value: 500000,
-                    stock: 10
+                    stock: 10,
+                    isActive: true
                 },
                 {
                     winningNumber: '9999',
                     name: 'Cash Prize Rp1.000.000',
                     type: 'cash',
                     value: 1000000,
-                    stock: 5
+                    stock: 5,
+                    isActive: true
                 }
             ];
             
@@ -1175,11 +1368,26 @@ app.use((req, res) => {
         availableEndpoints: [
             'GET /',
             'GET /health',
+            'GET /api/health',
+            'GET /api/status',
             'POST /api/auth/register',
             'POST /api/auth/login',
             'GET /api/user/profile',
             'POST /api/game/scratch',
-            'POST /api/admin/login'
+            'GET /api/user/history',
+            'GET /api/public/prizes',
+            'GET /api/public/game-settings',
+            'POST /api/admin/login',
+            'GET /api/admin/dashboard',
+            'GET /api/admin/users',
+            'POST /api/admin/users/:userId/reset-password',
+            'GET /api/admin/game-settings',
+            'PUT /api/admin/game-settings',
+            'GET /api/admin/prizes',
+            'POST /api/admin/prizes',
+            'PUT /api/admin/prizes/:prizeId',
+            'DELETE /api/admin/prizes/:prizeId',
+            'GET /api/admin/recent-winners'
         ]
     });
 });
@@ -1213,16 +1421,21 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
     console.log(`📡 API URL: https://gosokangka-backend-production.up.railway.app`);
-    console.log(`🔌 Socket.io enabled for real-time chat`);
+    console.log(`🔌 Socket.io enabled with realtime sync`);
     console.log(`📧 Email/Phone login support enabled`);
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
+    console.log(`🆕 New Features:`);
+    console.log(`   - Public endpoints for prizes & settings`);
+    console.log(`   - Admin password reset for users`);
+    console.log(`   - Realtime sync events via Socket.io`);
+    console.log(`   - Better error handling & responses`);
     console.log('========================================');
     
     // Initialize database with default data
