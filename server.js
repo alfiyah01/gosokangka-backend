@@ -51,11 +51,11 @@ connectDB();
 // CORS CONFIGURATION - UPDATED FOR PRODUCTION
 // ========================================
 const allowedOrigins = [
-    'https://gosokangkahoki.netlify.app',
-    'https://gosokangkahoki.com',
-    'https://www.gosokangkahoki.com',
-    'http://gosokangkahoki.com',
-    'http://www.gosokangkahoki.com',
+    'https://gosokangkahoki.netlify.app',     // Netlify domain
+    'https://gosokangkahoki.com',             // Custom domain
+    'https://www.gosokangkahoki.com',         // Custom domain dengan www
+    'http://gosokangkahoki.com',              // HTTP version (just in case)
+    'http://www.gosokangkahoki.com',         // HTTP dengan www
     'https://gosokangka-backend-production.up.railway.app',
     'http://localhost:3000',
     'http://localhost:5000',
