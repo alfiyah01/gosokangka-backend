@@ -48,16 +48,10 @@ async function connectDB() {
 connectDB();
 
 // ========================================
-// CORS CONFIGURATION - UPDATED FOR PRODUCTION
+// CORS CONFIGURATION - CLEAN VERSION
 // ========================================
-// ========================================
-// PERBAIKAN CORS CONFIGURATION - LANGSUNG PAKAI!
-// ========================================
-
-// Ganti bagian CORS di server.js Anda dengan kode ini:
-
 const allowedOrigins = [
-    // Netlify domains (tambahkan semua kemungkinan)
+    // Netlify domains
     'https://gosokangkahoki.netlify.app',     
     'https://www.gosokangkahoki.netlify.app',
     /^https:\/\/.*--gosokangkahoki\.netlify\.app$/,  // Preview URLs
@@ -81,7 +75,6 @@ const allowedOrigins = [
     'http://127.0.0.1:8080'
 ];
 
-// ✅ PERBAIKAN CORS - Lebih permissive untuk debugging
 app.use(cors({
     origin: function(origin, callback) {
         console.log('🔍 CORS Debug - Request origin:', origin);
@@ -111,7 +104,7 @@ app.use(cors({
             return callback(null, true);
         }
         
-        // ⚠️ TEMPORARY: Allow all .netlify.app domains for debugging
+        // Temporary: Allow all .netlify.app domains for debugging
         if (origin.includes('.netlify.app')) {
             console.log('⚠️ CORS: Temporarily allowing Netlify domain:', origin);
             return callback(null, true);
@@ -134,10 +127,10 @@ app.use(cors({
         'Access-Control-Request-Method',
         'Access-Control-Request-Headers'
     ],
-    optionsSuccessStatus: 200 // For legacy browser support
+    optionsSuccessStatus: 200
 }));
 
-// ✅ TAMBAHAN: Handle preflight requests
+// Handle preflight requests
 app.options('*', (req, res) => {
     console.log('🔍 Preflight request from:', req.headers.origin);
     res.header('Access-Control-Allow-Origin', req.headers.origin);
@@ -147,11 +140,12 @@ app.options('*', (req, res) => {
     res.sendStatus(200);
 });
 
-// ✅ PERBAIKAN Socket.IO CORS
+// ========================================
+// SOCKET.IO SETUP - CLEAN VERSION
+// ========================================
 const io = socketIO(server, {
     cors: {
         origin: function(origin, callback) {
-            // Same logic as Express CORS
             if (!origin) return callback(null, true);
             
             if (allowedOrigins.includes(origin) || 
@@ -166,52 +160,18 @@ const io = socketIO(server, {
         methods: ["GET", "POST"]
     },
     transports: ['websocket', 'polling'],
-    allowEIO3: true  // Support older clients
-});
-
-// ✅ LOGGING untuk debugging
-app.use((req, res, next) => {
-    console.log(`🔍 ${req.method} ${req.path} from origin: ${req.headers.origin || 'NO-ORIGIN'}`);
-    next();
-});
-
-// ✅ GLOBAL ERROR HANDLER untuk CORS
-app.use((err, req, res, next) => {
-    if (err.message && err.message.includes('CORS')) {
-        console.error('❌ CORS Error:', err.message);
-        console.error('❌ Request origin:', req.headers.origin);
-        console.error('❌ Request headers:', req.headers);
-        
-        return res.status(403).json({ 
-            error: 'CORS Error',
-            message: 'Origin not allowed',
-            origin: req.headers.origin,
-            allowedOrigins: allowedOrigins.filter(o => typeof o === 'string')
-        });
-    }
-    
-    console.error('❌ Global error:', err);
-    res.status(500).json({ 
-        error: 'Something went wrong!',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
-});
-
-// ========================================
-// SOCKET.IO SETUP - FIXED
-// ========================================
-const io = socketIO(server, {
-    cors: {
-        origin: allowedOrigins,
-        credentials: true,
-        methods: ["GET", "POST"]
-    },
-    transports: ['websocket', 'polling']
+    allowEIO3: true
 });
 
 // Add middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Request logging
+app.use((req, res, next) => {
+    console.log(`🔍 ${req.method} ${req.path} from origin: ${req.headers.origin || 'NO-ORIGIN'}`);
+    next();
+});
 
 // ========================================
 // DATABASE SCHEMAS
@@ -1205,9 +1165,10 @@ async function initializeDatabase() {
 }
 
 // ========================================
-// ERROR HANDLING
+// ERROR HANDLING (MOVED TO END)
 // ========================================
 
+// 404 handler (MOVED AFTER ALL ROUTES)
 app.use((req, res) => {
     res.status(404).json({ 
         error: 'Endpoint not found',
@@ -1223,7 +1184,20 @@ app.use((req, res) => {
     });
 });
 
+// Global error handler (MOVED TO VERY END)
 app.use((err, req, res, next) => {
+    if (err.message && err.message.includes('CORS')) {
+        console.error('❌ CORS Error:', err.message);
+        console.error('❌ Request origin:', req.headers.origin);
+        
+        return res.status(403).json({ 
+            error: 'CORS Error',
+            message: 'Origin not allowed',
+            origin: req.headers.origin,
+            allowedOrigins: allowedOrigins.filter(o => typeof o === 'string')
+        });
+    }
+    
     console.error('❌ Global error:', err);
     res.status(500).json({ 
         error: 'Something went wrong!',
