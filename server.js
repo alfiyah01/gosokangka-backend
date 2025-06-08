@@ -1,6 +1,6 @@
 // ========================================
-// GOSOK ANGKA BACKEND - PRODUCTION READY WITH SOCKET.IO
-// Updated: Support Email/Phone Login & Registration
+// GOSOK ANGKA BACKEND - PRODUCTION READY
+// Fixed Version untuk gosokangkahoki.com
 // ========================================
 
 const express = require('express');
@@ -13,72 +13,92 @@ const socketIO = require('socket.io');
 require('dotenv').config();
 
 const app = express();
-
-// Create HTTP server
 const server = http.createServer(app);
 
-// Setup Socket.io
-const io = socketIO(server, {
-    cors: {
-        origin: [
-            'https://gosokangkahoki.com',
-            'https://www.gosokangkahoki.com',
-            'http://localhost:3000',
-            'http://localhost:5000'
-        ],
-        credentials: true
-    }
-});
+// ========================================
+// DATABASE CONNECTION - FIXED
+// ========================================
+async function connectDB() {
+    try {
+        const mongoURI = process.env.MONGODB_URI;
+        
+        if (!mongoURI) {
+            throw new Error('MONGODB_URI tidak ditemukan di environment variables');
+        }
 
-// CORS Configuration
+        console.log('🔌 Connecting to MongoDB...');
+        
+        await mongoose.connect(mongoURI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            retryWrites: true,
+            w: 'majority'
+        });
+        
+        console.log('✅ MongoDB connected successfully!');
+        console.log(`📊 Database: ${mongoose.connection.name}`);
+        
+    } catch (error) {
+        console.error('❌ MongoDB connection error:', error.message);
+        process.exit(1);
+    }
+}
+
+// Connect to database immediately
+connectDB();
+
+// ========================================
+// CORS CONFIGURATION - UPDATED FOR PRODUCTION
+// ========================================
+const allowedOrigins = [
+    'https://gosokangkahoki.com',
+    'https://www.gosokangkahoki.com',
+    'http://gosokangkahoki.com',
+    'http://www.gosokangkahoki.com',
+    'https://gosokangka-backend-production.up.railway.app',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000'
+];
+
 app.use(cors({
     origin: function(origin, callback) {
-        const allowedOrigins = [
-            'https://gosokangkahoki.com',
-            'https://www.gosokangkahoki.com',
-            'http://gosokangkahoki.com',
-            'http://www.gosokangkahoki.com',
-            'http://localhost:3000',
-            'http://localhost:5000'
-        ];
-        
-        // Allow requests with no origin (like mobile apps)
+        // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.log('❌ CORS blocked origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Also update Socket.io CORS
+// ========================================
+// SOCKET.IO SETUP - FIXED
+// ========================================
 const io = socketIO(server, {
     cors: {
-        origin: [
-            'https://gosokangkahoki.com',
-            'https://www.gosokangkahoki.com',
-            'http://gosokangkahoki.com',
-            'http://www.gosokangkahoki.com',
-            'http://localhost:3000',
-            'http://localhost:5000'
-        ],
+        origin: allowedOrigins,
         credentials: true,
         methods: ["GET", "POST"]
-    }
+    },
+    transports: ['websocket', 'polling']
 });
 
-connectDB();
+// Add middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 // ========================================
 // DATABASE SCHEMAS
 // ========================================
 
-// User Schema - Updated to make email/phone flexible
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
@@ -91,7 +111,6 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Admin Schema
 const adminSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -100,7 +119,6 @@ const adminSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Prize Schema
 const prizeSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true, unique: true },
     name: { type: String, required: true },
@@ -111,7 +129,6 @@ const prizeSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Scratch Schema
 const scratchSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     scratchNumber: { type: String, required: true },
@@ -120,7 +137,6 @@ const scratchSchema = new mongoose.Schema({
     scratchDate: { type: Date, default: Date.now }
 });
 
-// Winner Schema
 const winnerSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     prizeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prize', required: true },
@@ -131,7 +147,6 @@ const winnerSchema = new mongoose.Schema({
     claimDate: { type: Date }
 });
 
-// Game Settings Schema
 const gameSettingsSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true },
     winProbability: { type: Number, default: 5 },
@@ -139,7 +154,6 @@ const gameSettingsSchema = new mongoose.Schema({
     isGameActive: { type: Boolean, default: true }
 });
 
-// Updated Chat Schema with IP and User Agent
 const chatSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     userIP: { type: String },
@@ -163,10 +177,37 @@ const GameSettings = mongoose.model('GameSettings', gameSettingsSchema);
 const Chat = mongoose.model('Chat', chatSchema);
 
 // ========================================
-// SOCKET.IO CONFIGURATION
+// MIDDLEWARE
 // ========================================
 
-// Socket.io Authentication Middleware
+const verifyToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        req.userType = decoded.userType;
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Invalid token' });
+    }
+};
+
+const verifyAdmin = (req, res, next) => {
+    if (req.userType !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
+
+// ========================================
+// SOCKET.IO HANDLERS
+// ========================================
+
 io.use(async (socket, next) => {
     try {
         const token = socket.handshake.auth.token;
@@ -183,18 +224,14 @@ io.use(async (socket, next) => {
     }
 });
 
-// Socket.io Connection Handler
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.userId);
+    console.log('✅ User connected:', socket.userId, 'Type:', socket.userType);
     
-    // Join user's personal room
     socket.join(`user-${socket.userId}`);
     
-    // If admin, join admin room
     if (socket.userType === 'admin') {
         socket.join('admin-room');
         
-        // Send all active chats to admin
         socket.on('admin:get-active-chats', async () => {
             try {
                 const activeChats = await Chat.find({ 
@@ -231,13 +268,12 @@ io.on('connection', (socket) => {
             }
         });
     }
-    
-    // Handle user sending message
+
+    // Chat message handlers
     socket.on('chat:send-message', async (data) => {
         try {
             const { message, userIP, userAgent } = data;
             
-            // Find or create chat
             let chat = await Chat.findOne({ userId: socket.userId });
             if (!chat) {
                 chat = new Chat({ 
@@ -248,7 +284,6 @@ io.on('connection', (socket) => {
                 });
             }
             
-            // Update IP and user agent if changed
             if (userIP && chat.userIP !== userIP) {
                 chat.userIP = userIP;
             }
@@ -256,7 +291,6 @@ io.on('connection', (socket) => {
                 chat.userAgent = userAgent;
             }
             
-            // Add message
             const newMessage = {
                 from: socket.userType === 'admin' ? 'admin' : 'user',
                 message: message.trim(),
@@ -268,25 +302,19 @@ io.on('connection', (socket) => {
             chat.lastActivity = new Date();
             await chat.save();
             
-            // Get user details
-            const user = await User.findById(socket.userId)
-                .select('name email phoneNumber');
+            const user = await User.findById(socket.userId).select('name email phoneNumber');
             
-            // Emit to sender
             socket.emit('chat:message-sent', {
                 ...newMessage,
                 _id: chat.messages[chat.messages.length - 1]._id
             });
             
-            // Emit to recipient
             if (socket.userType === 'admin') {
-                // Admin sending to user
                 io.to(`user-${data.targetUserId}`).emit('chat:new-message', {
                     ...newMessage,
                     chatId: chat._id
                 });
             } else {
-                // User sending to admin
                 io.to('admin-room').emit('chat:new-message', {
                     ...newMessage,
                     chatId: chat._id,
@@ -300,13 +328,11 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Failed to send message' });
         }
     });
-    
-    // Handle admin sending message to specific user
+
     socket.on('admin:send-message', async (data) => {
         try {
             const { userId, message } = data;
             
-            // Find or create chat
             let chat = await Chat.findOne({ userId });
             if (!chat) {
                 chat = new Chat({ userId, messages: [] });
@@ -323,14 +349,12 @@ io.on('connection', (socket) => {
             chat.lastActivity = new Date();
             await chat.save();
             
-            // Emit to admin
             socket.emit('admin:message-sent', {
                 ...newMessage,
                 _id: chat.messages[chat.messages.length - 1]._id,
                 userId
             });
             
-            // Emit to user
             io.to(`user-${userId}`).emit('chat:new-message', {
                 ...newMessage,
                 chatId: chat._id
@@ -339,53 +363,10 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Failed to send message' });
         }
     });
-    
-    // Handle mark as read
-    socket.on('chat:mark-read', async (data) => {
-        try {
-            const { chatId } = data;
-            
-            await Chat.updateOne(
-                { _id: chatId },
-                { $set: { 'messages.$[elem].isRead': true } },
-                { arrayFilters: [{ 'elem.from': { $ne: socket.userType } }] }
-            );
-            
-            socket.emit('chat:marked-read', { chatId });
-            
-            // Notify admin about read status
-            if (socket.userType === 'user') {
-                io.to('admin-room').emit('chat:messages-read', {
-                    userId: socket.userId,
-                    chatId
-                });
-            }
-        } catch (error) {
-            socket.emit('error', { message: 'Failed to mark as read' });
-        }
-    });
-    
-    // Handle typing indicators
-    socket.on('chat:typing', (data) => {
-        if (socket.userType === 'admin') {
-            io.to(`user-${data.targetUserId}`).emit('chat:user-typing', {
-                isTyping: data.isTyping,
-                from: 'admin'
-            });
-        } else {
-            io.to('admin-room').emit('chat:user-typing', {
-                isTyping: data.isTyping,
-                userId: socket.userId,
-                from: 'user'
-            });
-        }
-    });
-    
-    // Handle disconnect
+
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.userId);
+        console.log('❌ User disconnected:', socket.userId);
         
-        // Notify admins if user disconnected
         if (socket.userType === 'user') {
             io.to('admin-room').emit('user:offline', {
                 userId: socket.userId,
@@ -396,92 +377,71 @@ io.on('connection', (socket) => {
 });
 
 // ========================================
-// MIDDLEWARE
+// ROUTES
 // ========================================
 
-// Verify JWT Token
-const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.userId;
-        req.userType = decoded.userType;
-        next();
-    } catch (error) {
-        return res.status(403).json({ error: 'Invalid token' });
-    }
-};
-
-// Verify Admin
-const verifyAdmin = (req, res, next) => {
-    if (req.userType !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-};
-
-// ========================================
-// ROUTES - ROOT
-// ========================================
-
+// Root endpoint
 app.get('/', (req, res) => {
     res.json({
-        message: 'Gosok Angka Backend API',
-        version: '1.0.0',
+        message: '🎯 Gosok Angka Backend API',
+        version: '2.0.0',
+        status: 'Production Ready',
+        domain: 'gosokangkahoki.com',
         features: {
             realtime: 'Socket.io enabled',
-            chat: 'Live chat support',
-            auth: 'Email/Phone login support'
+            chat: 'Live chat support', 
+            auth: 'Email/Phone login support',
+            database: 'MongoDB Atlas connected',
+            cors: 'Production domains configured'
         },
         endpoints: {
             auth: '/api/auth',
-            user: '/api/user',
+            user: '/api/user', 
             game: '/api/game',
             admin: '/api/admin'
-        }
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        uptime: process.uptime()
     });
 });
 
 // ========================================
-// ROUTES - AUTHENTICATION
+// AUTH ROUTES
 // ========================================
 
-// User Registration - UPDATED to support email/phone flexibility
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { name, email, password, phoneNumber } = req.body;
         
-        // Validation
         if (!name || !password) {
             return res.status(400).json({ error: 'Nama dan password harus diisi' });
         }
         
-        // Determine email and phone
         let userEmail = email;
         let userPhone = phoneNumber;
         
-        // If email is provided but not phone, generate dummy phone
         if (email && !phoneNumber) {
-            userPhone = '0000000000'; // Dummy phone number
+            userPhone = '0000000000';
         }
         
-        // If phone is provided but not email, generate dummy email
         if (phoneNumber && !email) {
             const timestamp = Date.now();
             userEmail = `user${timestamp}@gosokangka.com`;
         }
         
-        // Ensure both email and phone are provided
         if (!userEmail || !userPhone) {
             return res.status(400).json({ error: 'Email atau nomor HP harus diisi' });
         }
         
-        // Check if user exists by email
         if (userEmail && userEmail !== 'dummy@gosokangka.com') {
             const existingUserByEmail = await User.findOne({ email: userEmail.toLowerCase() });
             if (existingUserByEmail) {
@@ -489,7 +449,6 @@ app.post('/api/auth/register', async (req, res) => {
             }
         }
         
-        // Check if user exists by phone (if not dummy)
         if (userPhone && userPhone !== '0000000000') {
             const existingUserByPhone = await User.findOne({ phoneNumber: userPhone });
             if (existingUserByPhone) {
@@ -497,10 +456,8 @@ app.post('/api/auth/register', async (req, res) => {
             }
         }
         
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // Create user
         const user = new User({
             name,
             email: userEmail.toLowerCase(),
@@ -510,7 +467,6 @@ app.post('/api/auth/register', async (req, res) => {
         
         await user.save();
         
-        // Generate token
         const token = jwt.sign(
             { userId: user._id, userType: 'user' },
             process.env.JWT_SECRET,
@@ -532,30 +488,24 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// User Login - UPDATED to support email/phone login
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { identifier, password, email } = req.body;
         
-        // Support both old (email) and new (identifier) format
         const loginIdentifier = identifier || email;
         
         if (!loginIdentifier || !password) {
             return res.status(400).json({ error: 'Email/No HP dan password harus diisi' });
         }
         
-        // Find user by email or phone
         let user;
         
-        // Check if identifier is email (contains @)
         if (loginIdentifier.includes('@')) {
             user = await User.findOne({ email: loginIdentifier.toLowerCase() });
         } else {
-            // It's a phone number - clean it first (remove non-numeric characters)
             const cleanPhone = loginIdentifier.replace(/\D/g, '');
             user = await User.findOne({ phoneNumber: cleanPhone });
             
-            // If not found with cleaned phone, try original format
             if (!user) {
                 user = await User.findOne({ phoneNumber: loginIdentifier });
             }
@@ -565,13 +515,11 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ error: 'Email/No HP atau password salah' });
         }
         
-        // Check password
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
             return res.status(400).json({ error: 'Email/No HP atau password salah' });
         }
         
-        // Generate token
         const token = jwt.sign(
             { userId: user._id, userType: 'user' },
             process.env.JWT_SECRET,
@@ -594,10 +542,9 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ========================================
-// ROUTES - USER
+// USER ROUTES  
 // ========================================
 
-// Get User Profile
 app.get('/api/user/profile', verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.userId).select('-password');
@@ -611,41 +558,17 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
     }
 });
 
-// Update User Profile
-app.put('/api/user/profile', verifyToken, async (req, res) => {
-    try {
-        const { name, phoneNumber } = req.body;
-        
-        const user = await User.findByIdAndUpdate(
-            req.userId,
-            { name, phoneNumber },
-            { new: true }
-        ).select('-password');
-        
-        res.json({
-            message: 'Profile berhasil diupdate',
-            user
-        });
-    } catch (error) {
-        console.error('Update profile error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
 // ========================================
-// ROUTES - GAME
+// GAME ROUTES
 // ========================================
 
-// Scratch Card
 app.post('/api/game/scratch', verifyToken, async (req, res) => {
     try {
-        // Get game settings
         const settings = await GameSettings.findOne();
         if (!settings || !settings.isGameActive) {
             return res.status(400).json({ error: 'Game sedang tidak aktif' });
         }
         
-        // Check if user already scratched today
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -656,15 +579,12 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             });
         }
         
-        // Generate random 4-digit number
         const scratchNumber = Math.floor(1000 + Math.random() * 9000).toString();
         
-        // Check if win
         let isWin = false;
         let prize = null;
         let winner = null;
         
-        // Check against all active prizes
         const activePrize = await Prize.findOne({ 
             winningNumber: scratchNumber,
             stock: { $gt: 0 },
@@ -675,12 +595,10 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             isWin = true;
             prize = activePrize;
             
-            // Decrease stock
             prize.stock -= 1;
             await prize.save();
         }
         
-        // Create scratch record
         const scratch = new Scratch({
             userId: req.userId,
             scratchNumber,
@@ -690,7 +608,6 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         
         await scratch.save();
         
-        // If win, create winner record
         if (isWin && prize) {
             const claimCode = Math.random().toString(36).substring(2, 10).toUpperCase();
             
@@ -704,7 +621,6 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             await winner.save();
         }
         
-        // Update user stats
         await User.findByIdAndUpdate(req.userId, {
             $inc: {
                 scratchCount: 1,
@@ -729,7 +645,6 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
     }
 });
 
-// Get User Scratch History
 app.get('/api/user/history', verifyToken, async (req, res) => {
     try {
         const scratches = await Scratch.find({ userId: req.userId })
@@ -744,25 +659,10 @@ app.get('/api/user/history', verifyToken, async (req, res) => {
     }
 });
 
-// Get User Winners
-app.get('/api/user/winners', verifyToken, async (req, res) => {
-    try {
-        const winners = await Winner.find({ userId: req.userId })
-            .populate('prizeId')
-            .sort({ scratchDate: -1 });
-            
-        res.json(winners);
-    } catch (error) {
-        console.error('Winners error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
 // ========================================
-// ROUTES - ADMIN
+// ADMIN ROUTES
 // ========================================
 
-// Admin Login
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -802,18 +702,12 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
-// Get Dashboard Stats
 app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const [
-            totalUsers,
-            todayScratches,
-            todayWinners,
-            totalPrizesResult
-        ] = await Promise.all([
+        const [totalUsers, todayScratches, todayWinners, totalPrizesResult] = await Promise.all([
             User.countDocuments(),
             Scratch.countDocuments({ scratchDate: { $gte: today } }),
             Winner.countDocuments({ scratchDate: { $gte: today } }),
@@ -845,7 +739,6 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
-// Get All Users
 app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
@@ -869,39 +762,10 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
-// Reset User Password
-app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { newPassword } = req.body;
-        
-        if (!newPassword || newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password minimal 6 karakter' });
-        }
-        
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        
-        const user = await User.findByIdAndUpdate(userId, {
-            password: hashedPassword
-        });
-        
-        if (!user) {
-            return res.status(404).json({ error: 'User tidak ditemukan' });
-        }
-        
-        res.json({ message: 'Password berhasil direset' });
-    } catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Get Game Settings - PUBLIC ENDPOINT (untuk frontend game)
 app.get('/api/admin/game-settings', async (req, res) => {
     try {
         let settings = await GameSettings.findOne();
         
-        // Create default settings if not exists
         if (!settings) {
             settings = new GameSettings({
                 winningNumber: '1234',
@@ -919,12 +783,10 @@ app.get('/api/admin/game-settings', async (req, res) => {
     }
 });
 
-// Update Game Settings
 app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { winningNumber, winProbability, maxScratchesPerDay, isGameActive } = req.body;
         
-        // Validation
         if (winningNumber && (winningNumber.length !== 4 || isNaN(winningNumber))) {
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
         }
@@ -942,25 +804,6 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
     }
 });
 
-// Generate Random Winning Number
-app.post('/api/admin/generate-winning-number', verifyToken, verifyAdmin, async (req, res) => {
-    try {
-        const winningNumber = Math.floor(1000 + Math.random() * 9000).toString();
-        
-        const settings = await GameSettings.findOneAndUpdate(
-            {},
-            { winningNumber },
-            { new: true, upsert: true }
-        );
-        
-        res.json({ winningNumber: settings.winningNumber });
-    } catch (error) {
-        console.error('Generate number error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Get All Prizes - PUBLIC ENDPOINT (untuk frontend game)
 app.get('/api/admin/prizes', async (req, res) => {
     try {
         const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
@@ -971,17 +814,14 @@ app.get('/api/admin/prizes', async (req, res) => {
     }
 });
 
-// Add Prize
 app.post('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { winningNumber, name, type, value, stock } = req.body;
         
-        // Validation
         if (!winningNumber || winningNumber.length !== 4 || isNaN(winningNumber)) {
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
         }
         
-        // Check if winning number already exists
         const existingPrize = await Prize.findOne({ winningNumber });
         if (existingPrize) {
             return res.status(400).json({ error: 'Winning number sudah digunakan' });
@@ -1003,18 +843,15 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
     }
 });
 
-// Update Prize
 app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { prizeId } = req.params;
         const { winningNumber, name, type, value, stock, isActive } = req.body;
         
-        // Validation
         if (winningNumber && (winningNumber.length !== 4 || isNaN(winningNumber))) {
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
         }
         
-        // Check if winning number already exists (excluding current prize)
         if (winningNumber) {
             const existingPrize = await Prize.findOne({ 
                 winningNumber, 
@@ -1042,7 +879,6 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res)
     }
 });
 
-// Delete Prize
 app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { prizeId } = req.params;
@@ -1059,7 +895,6 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
     }
 });
 
-// Get Recent Winners
 app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const winners = await Winner.find()
@@ -1075,72 +910,7 @@ app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) 
     }
 });
 
-// Get Analytics
-app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
-    try {
-        const { period = '7days' } = req.query;
-        
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        
-        switch(period) {
-            case '7days':
-                startDate.setDate(startDate.getDate() - 7);
-                break;
-            case '30days':
-                startDate.setDate(startDate.getDate() - 30);
-                break;
-            case '3months':
-                startDate.setMonth(startDate.getMonth() - 3);
-                break;
-        }
-        
-        // Get daily stats
-        const dailyStats = await Scratch.aggregate([
-            {
-                $match: {
-                    scratchDate: { $gte: startDate, $lte: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        $dateToString: { format: "%Y-%m-%d", date: "$scratchDate" }
-                    },
-                    scratches: { $sum: 1 },
-                    winners: {
-                        $sum: { $cond: ["$isWin", 1, 0] }
-                    }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
-        
-        // Format data for chart
-        const labels = [];
-        const scratches = [];
-        const winners = [];
-        
-        dailyStats.forEach(stat => {
-            const date = new Date(stat._id);
-            labels.push(date.toLocaleDateString('id-ID', { weekday: 'short' }));
-            scratches.push(stat.scratches);
-            winners.push(stat.winners);
-        });
-        
-        res.json({ labels, scratches, winners });
-    } catch (error) {
-        console.error('Analytics error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// ========================================
-// ROUTES - CHAT (UPDATED WITH SOCKET SUPPORT)
-// ========================================
-
-// Get Chat History with Socket Support
+// Chat endpoints
 app.get('/api/user/chat/history', verifyToken, async (req, res) => {
     try {
         const chat = await Chat.findOne({ userId: req.userId });
@@ -1149,7 +919,6 @@ app.get('/api/user/chat/history', verifyToken, async (req, res) => {
             return res.json({ messages: [], userIP: req.ip });
         }
         
-        // Update user IP if changed
         if (chat.userIP !== req.ip) {
             chat.userIP = req.ip;
             await chat.save();
@@ -1166,11 +935,10 @@ app.get('/api/user/chat/history', verifyToken, async (req, res) => {
     }
 });
 
-// Admin Get All Active Chats
 app.get('/api/admin/chat/active', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const activeChats = await Chat.find({ 
-            lastActivity: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+            lastActivity: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         })
         .populate('userId', 'name email phoneNumber status lastScratchDate')
         .sort({ lastActivity: -1 });
@@ -1203,7 +971,6 @@ app.get('/api/admin/chat/active', verifyToken, verifyAdmin, async (req, res) => 
     }
 });
 
-// Get Chat History (Admin)
 app.get('/api/admin/chat/history/:userId', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
@@ -1214,7 +981,6 @@ app.get('/api/admin/chat/history/:userId', verifyToken, verifyAdmin, async (req,
             return res.json([]);
         }
         
-        // Mark as read
         chat.messages.forEach(msg => {
             if (msg.from === 'user') {
                 msg.isRead = true;
@@ -1230,10 +996,9 @@ app.get('/api/admin/chat/history/:userId', verifyToken, verifyAdmin, async (req,
 });
 
 // ========================================
-// INITIAL SETUP
+// INITIALIZATION FUNCTIONS
 // ========================================
 
-// Create Default Admin
 async function createDefaultAdmin() {
     try {
         const adminExists = await Admin.findOne({ username: 'admin' });
@@ -1249,16 +1014,15 @@ async function createDefaultAdmin() {
             
             await admin.save();
             console.log('✅ Default admin created!');
-            console.log('Username: admin');
-            console.log('Password: GosokAngka2024!');
-            console.log('⚠️  IMPORTANT: Change this password after first login!');
+            console.log('🔑 Username: admin');
+            console.log('🔑 Password: GosokAngka2024!');
+            console.log('⚠️ IMPORTANT: Change password after first login!');
         }
     } catch (error) {
-        console.error('Error creating default admin:', error);
+        console.error('❌ Error creating default admin:', error);
     }
 }
 
-// Create Default Game Settings
 async function createDefaultSettings() {
     try {
         const settingsExist = await GameSettings.findOne();
@@ -1275,11 +1039,10 @@ async function createDefaultSettings() {
             console.log('✅ Default game settings created!');
         }
     } catch (error) {
-        console.error('Error creating default settings:', error);
+        console.error('❌ Error creating default settings:', error);
     }
 }
 
-// Create Sample Prizes
 async function createSamplePrizes() {
     try {
         const prizeCount = await Prize.countDocuments();
@@ -1313,11 +1076,10 @@ async function createSamplePrizes() {
             console.log('✅ Sample prizes created!');
         }
     } catch (error) {
-        console.error('Error creating sample prizes:', error);
+        console.error('❌ Error creating sample prizes:', error);
     }
 }
 
-// Initialize Database
 async function initializeDatabase() {
     await createDefaultAdmin();
     await createDefaultSettings();
@@ -1328,30 +1090,47 @@ async function initializeDatabase() {
 // ERROR HANDLING
 // ========================================
 
-// 404 Handler
 app.use((req, res) => {
-    res.status(404).json({ error: 'Endpoint not found' });
+    res.status(404).json({ 
+        error: 'Endpoint not found',
+        availableEndpoints: [
+            'GET /',
+            'GET /health',
+            'POST /api/auth/register',
+            'POST /api/auth/login',
+            'GET /api/user/profile',
+            'POST /api/game/scratch',
+            'POST /api/admin/login'
+        ]
+    });
 });
 
-// Global Error Handler
 app.use((err, req, res, next) => {
-    console.error('Global error:', err);
-    res.status(500).json({ error: 'Something went wrong!' });
+    console.error('❌ Global error:', err);
+    res.status(500).json({ 
+        error: 'Something went wrong!',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
 });
 
 // ========================================
-// START SERVER WITH SOCKET.IO
+// START SERVER
 // ========================================
 
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION');
+    console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
-    console.log(`📡 API URL: http://localhost:${PORT}`);
+    console.log(`🌐 Domain: gosokangkahoki.com`);
+    console.log(`📡 API URL: https://gosokangka-backend-production.up.railway.app`);
     console.log(`🔌 Socket.io enabled for real-time chat`);
     console.log(`📧 Email/Phone login support enabled`);
-    console.log(`🌐 Ready for production deployment`);
+    console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
+    console.log(`📊 Database: MongoDB Atlas`);
+    console.log(`🔐 Security: JWT Authentication, CORS configured`);
     console.log('========================================');
     
     // Initialize database with default data
