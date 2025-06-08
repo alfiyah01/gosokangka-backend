@@ -32,31 +32,45 @@ const io = socketIO(server, {
 
 // CORS Configuration
 app.use(cors({
-    origin: [
-        'https://gosokangkahoki.com',
-        'https://www.gosokangkahoki.com',
-        'http://localhost:3000'
-    ],
-    credentials: true
+    origin: function(origin, callback) {
+        const allowedOrigins = [
+            'https://gosokangkahoki.com',
+            'https://www.gosokangkahoki.com',
+            'http://gosokangkahoki.com',
+            'http://www.gosokangkahoki.com',
+            'http://localhost:3000',
+            'http://localhost:5000'
+        ];
+        
+        // Allow requests with no origin (like mobile apps)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// MongoDB Connection dengan retry logic
-const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        });
-        console.log('✅ MongoDB Connected Successfully!');
-    } catch (error) {
-        console.error('❌ MongoDB Connection Error:', error);
-        console.log('⏳ Retrying in 5 seconds...');
-        setTimeout(connectDB, 5000);
+// Also update Socket.io CORS
+const io = socketIO(server, {
+    cors: {
+        origin: [
+            'https://gosokangkahoki.com',
+            'https://www.gosokangkahoki.com',
+            'http://gosokangkahoki.com',
+            'http://www.gosokangkahoki.com',
+            'http://localhost:3000',
+            'http://localhost:5000'
+        ],
+        credentials: true,
+        methods: ["GET", "POST"]
     }
-};
+});
 
 connectDB();
 
