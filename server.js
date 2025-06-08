@@ -1,5 +1,6 @@
 // ========================================
 // GOSOK ANGKA BACKEND - PRODUCTION READY WITH SOCKET.IO
+// Updated: Support Email/Phone Login & Registration
 // ========================================
 
 const express = require('express');
@@ -63,7 +64,7 @@ connectDB();
 // DATABASE SCHEMAS
 // ========================================
 
-// User Schema
+// User Schema - Updated to make email/phone flexible
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
@@ -420,7 +421,8 @@ app.get('/', (req, res) => {
         version: '1.0.0',
         features: {
             realtime: 'Socket.io enabled',
-            chat: 'Live chat support'
+            chat: 'Live chat support',
+            auth: 'Email/Phone login support'
         },
         endpoints: {
             auth: '/api/auth',
@@ -435,20 +437,50 @@ app.get('/', (req, res) => {
 // ROUTES - AUTHENTICATION
 // ========================================
 
-// User Registration
+// User Registration - UPDATED to support email/phone flexibility
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { name, email, password, phoneNumber } = req.body;
         
         // Validation
-        if (!name || !email || !password || !phoneNumber) {
-            return res.status(400).json({ error: 'Semua field harus diisi' });
+        if (!name || !password) {
+            return res.status(400).json({ error: 'Nama dan password harus diisi' });
         }
         
-        // Check if user exists
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email sudah terdaftar' });
+        // Determine email and phone
+        let userEmail = email;
+        let userPhone = phoneNumber;
+        
+        // If email is provided but not phone, generate dummy phone
+        if (email && !phoneNumber) {
+            userPhone = '0000000000'; // Dummy phone number
+        }
+        
+        // If phone is provided but not email, generate dummy email
+        if (phoneNumber && !email) {
+            const timestamp = Date.now();
+            userEmail = `user${timestamp}@gosokangka.com`;
+        }
+        
+        // Ensure both email and phone are provided
+        if (!userEmail || !userPhone) {
+            return res.status(400).json({ error: 'Email atau nomor HP harus diisi' });
+        }
+        
+        // Check if user exists by email
+        if (userEmail && userEmail !== 'dummy@gosokangka.com') {
+            const existingUserByEmail = await User.findOne({ email: userEmail.toLowerCase() });
+            if (existingUserByEmail) {
+                return res.status(400).json({ error: 'Email sudah terdaftar' });
+            }
+        }
+        
+        // Check if user exists by phone (if not dummy)
+        if (userPhone && userPhone !== '0000000000') {
+            const existingUserByPhone = await User.findOne({ phoneNumber: userPhone });
+            if (existingUserByPhone) {
+                return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
+            }
         }
         
         // Hash password
@@ -457,9 +489,9 @@ app.post('/api/auth/register', async (req, res) => {
         // Create user
         const user = new User({
             name,
-            email: email.toLowerCase(),
+            email: userEmail.toLowerCase(),
             password: hashedPassword,
-            phoneNumber
+            phoneNumber: userPhone
         });
         
         await user.save();
@@ -486,25 +518,43 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// User Login
+// User Login - UPDATED to support email/phone login
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { identifier, password, email } = req.body;
         
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email dan password harus diisi' });
+        // Support both old (email) and new (identifier) format
+        const loginIdentifier = identifier || email;
+        
+        if (!loginIdentifier || !password) {
+            return res.status(400).json({ error: 'Email/No HP dan password harus diisi' });
         }
         
-        // Find user
-        const user = await User.findOne({ email: email.toLowerCase() });
+        // Find user by email or phone
+        let user;
+        
+        // Check if identifier is email (contains @)
+        if (loginIdentifier.includes('@')) {
+            user = await User.findOne({ email: loginIdentifier.toLowerCase() });
+        } else {
+            // It's a phone number - clean it first (remove non-numeric characters)
+            const cleanPhone = loginIdentifier.replace(/\D/g, '');
+            user = await User.findOne({ phoneNumber: cleanPhone });
+            
+            // If not found with cleaned phone, try original format
+            if (!user) {
+                user = await User.findOne({ phoneNumber: loginIdentifier });
+            }
+        }
+        
         if (!user) {
-            return res.status(400).json({ error: 'Email atau password salah' });
+            return res.status(400).json({ error: 'Email/No HP atau password salah' });
         }
         
         // Check password
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-            return res.status(400).json({ error: 'Email atau password salah' });
+            return res.status(400).json({ error: 'Email/No HP atau password salah' });
         }
         
         // Generate token
@@ -950,6 +1000,17 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res)
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
         }
         
+        // Check if winning number already exists (excluding current prize)
+        if (winningNumber) {
+            const existingPrize = await Prize.findOne({ 
+                winningNumber, 
+                _id: { $ne: prizeId } 
+            });
+            if (existingPrize) {
+                return res.status(400).json({ error: 'Winning number sudah digunakan prize lain' });
+            }
+        }
+        
         const prize = await Prize.findByIdAndUpdate(
             prizeId,
             { winningNumber, name, type, value, stock, isActive },
@@ -1275,6 +1336,7 @@ server.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📡 API URL: http://localhost:${PORT}`);
     console.log(`🔌 Socket.io enabled for real-time chat`);
+    console.log(`📧 Email/Phone login support enabled`);
     console.log(`🌐 Ready for production deployment`);
     console.log('========================================');
     
