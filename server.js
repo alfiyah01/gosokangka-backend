@@ -2,6 +2,7 @@
 // GOSOK ANGKA BACKEND - PRODUCTION READY
 // Fixed Version untuk gosokangkahoki.com
 // Updated for Realtime Sync & Better Integration
+// Version 2.2.0 - Fixed Socket Events & Response Formats
 // ========================================
 
 const express = require('express');
@@ -164,10 +165,10 @@ const io = socketIO(server, {
     allowEIO3: true
 });
 
-// Global socket manager for broadcasting updates
+// Global socket manager for broadcasting updates - FIXED EVENT NAMES
 const socketManager = {
     broadcastPrizeUpdate: (data) => {
-        io.emit('prize:updated', data);
+        io.emit('prizes:updated', data); // Fixed from 'prize:updated'
         console.log('📡 Broadcasting prize update:', data.type);
     },
     broadcastSettingsUpdate: (data) => {
@@ -175,8 +176,20 @@ const socketManager = {
         console.log('📡 Broadcasting settings update');
     },
     broadcastUserUpdate: (data) => {
-        io.emit('user:updated', data);
+        io.emit('users:updated', data); // Fixed from 'user:updated'
         console.log('📡 Broadcasting user update:', data.type);
+    },
+    broadcastNewWinner: (data) => {
+        io.emit('winner:new', data);
+        console.log('📡 Broadcasting new winner');
+    },
+    broadcastNewScratch: (data) => {
+        io.emit('scratch:new', data);
+        console.log('📡 Broadcasting new scratch');
+    },
+    broadcastNewUser: (data) => {
+        io.emit('user:new-registration', data);
+        console.log('📡 Broadcasting new user registration');
     }
 };
 
@@ -327,6 +340,63 @@ io.on('connection', (socket) => {
     
     if (socket.userType === 'admin') {
         socket.join('admin-room');
+        
+        // Handle admin events
+        socket.on('admin:settings-changed', async (data) => {
+            try {
+                // Broadcast to all clients except sender
+                socket.broadcast.emit('settings:updated', data);
+                console.log('📡 Admin changed settings, broadcasting to all clients');
+            } catch (error) {
+                console.error('Settings broadcast error:', error);
+            }
+        });
+        
+        socket.on('admin:prize-added', async (data) => {
+            try {
+                socket.broadcast.emit('prizes:updated', {
+                    type: 'prize_added',
+                    prizeData: data,
+                    message: 'New prize added'
+                });
+                console.log('📡 Admin added prize, broadcasting to all clients');
+            } catch (error) {
+                console.error('Prize add broadcast error:', error);
+            }
+        });
+        
+        socket.on('admin:prize-updated', async (data) => {
+            try {
+                socket.broadcast.emit('prizes:updated', {
+                    type: 'prize_updated',
+                    prizeId: data.prizeId,
+                    prizeData: data.data,
+                    message: 'Prize updated'
+                });
+                console.log('📡 Admin updated prize, broadcasting to all clients');
+            } catch (error) {
+                console.error('Prize update broadcast error:', error);
+            }
+        });
+        
+        socket.on('admin:prize-deleted', async (data) => {
+            try {
+                socket.broadcast.emit('prizes:updated', {
+                    type: 'prize_deleted',
+                    prizeId: data.prizeId,
+                    message: 'Prize deleted'
+                });
+                console.log('📡 Admin deleted prize, broadcasting to all clients');
+            } catch (error) {
+                console.error('Prize delete broadcast error:', error);
+            }
+        });
+        
+        // Emit admin connected event
+        io.emit('admin:connected', {
+            adminId: socket.userId,
+            timestamp: new Date()
+        });
         
         socket.on('admin:get-active-chats', async () => {
             try {
@@ -480,7 +550,7 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
     res.json({
         message: '🎯 Gosok Angka Backend API',
-        version: '2.0.0',
+        version: '2.2.0',
         status: 'Production Ready',
         domain: 'gosokangkahoki.com',
         features: {
@@ -581,6 +651,17 @@ app.post('/api/auth/register', async (req, res) => {
         });
         
         await user.save();
+        
+        // Broadcast new user registration
+        socketManager.broadcastNewUser({
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                createdAt: user.createdAt
+            }
+        });
         
         const token = jwt.sign(
             { userId: user._id, userType: 'user' },
@@ -728,7 +809,8 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             socketManager.broadcastPrizeUpdate({
                 type: 'stock_updated',
                 prizeId: prize._id,
-                newStock: prize.stock
+                newStock: prize.stock,
+                message: 'Prize stock updated'
             });
         }
         
@@ -741,6 +823,25 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         
         await scratch.save();
         
+        // Broadcast new scratch event
+        const scratchData = {
+            _id: scratch._id,
+            userId: req.userId,
+            scratchNumber,
+            isWin,
+            scratchDate: scratch.scratchDate
+        };
+        
+        if (isWin && prize) {
+            scratchData.prize = {
+                name: prize.name,
+                type: prize.type,
+                value: prize.value
+            };
+        }
+        
+        socketManager.broadcastNewScratch(scratchData);
+        
         if (isWin && prize) {
             const claimCode = Math.random().toString(36).substring(2, 10).toUpperCase();
             
@@ -752,6 +853,13 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             });
             
             await winner.save();
+            
+            // Broadcast new winner with populated data
+            const winnerData = await Winner.findById(winner._id)
+                .populate('userId', 'name email phoneNumber')
+                .populate('prizeId', 'name value type');
+                
+            socketManager.broadcastNewWinner(winnerData);
         }
         
         await User.findByIdAndUpdate(req.userId, {
@@ -1169,7 +1277,8 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
         // Broadcast new prize
         socketManager.broadcastPrizeUpdate({
             type: 'prize_added',
-            prizeData: prize
+            prizeData: prize,
+            message: 'New prize added'
         });
         
         res.status(201).json(prize);
@@ -1212,7 +1321,8 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, res)
         socketManager.broadcastPrizeUpdate({
             type: 'prize_updated',
             prizeId: prize._id,
-            prizeData: prize
+            prizeData: prize,
+            message: 'Prize updated'
         });
         
         res.json(prize);
@@ -1234,7 +1344,8 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
         // Broadcast prize deletion
         socketManager.broadcastPrizeUpdate({
             type: 'prize_deleted',
-            prizeId: prizeId
+            prizeId: prizeId,
+            message: 'Prize deleted'
         });
         
         res.json({ message: 'Prize berhasil dihapus' });
@@ -1246,11 +1357,11 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
 
 app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { limit = 20 } = req.query;
+        const { limit = 50 } = req.query; // Default 50 untuk konsistensi dengan admin panel
         
         const winners = await Winner.find()
-            .populate('userId', 'name email')
-            .populate('prizeId', 'name value')
+            .populate('userId', 'name email phoneNumber') // Tambah phoneNumber
+            .populate('prizeId', 'name value type') // Tambah type
             .sort({ scratchDate: -1 })
             .limit(parseInt(limit));
             
@@ -1261,20 +1372,28 @@ app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) 
     }
 });
 
-// Get all scratch history
+// Get all scratch history - FIXED RESPONSE FORMAT
 app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { page = 1, limit = 50 } = req.query;
         
         const scratches = await Scratch.find()
             .populate('userId', 'name email phoneNumber')
-            .populate('prizeId', 'name value')
+            .populate('prizeId', 'name value type')
             .sort({ scratchDate: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
             
-        // Return as array for frontend compatibility
-        res.json(scratches);
+        const total = await Scratch.countDocuments();
+        
+        // Return as object with scratches array for consistency
+        res.json({
+            scratches: scratches,
+            total: total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         console.error('Get scratch history error:', error);
         res.status(500).json({ error: 'Server error' });
@@ -1620,7 +1739,7 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.1');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.2');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
@@ -1630,17 +1749,13 @@ server.listen(PORT, () => {
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
-    console.log(`🆕 New Features V2.1:`);
-    console.log(`   - Admin password change`);
-    console.log(`   - User search functionality`); 
-    console.log(`   - User detail view`);
-    console.log(`   - Complete scratch history`);
-    console.log(`   - Analytics dashboard`);
-    console.log(`   - Win/Loss tracking per user`);
-    console.log(`   - Public endpoints for prizes & settings`);
-    console.log(`   - Admin password reset for users`);
-    console.log(`   - Realtime sync events via Socket.io`);
-    console.log(`   - Better error handling & responses`);
+    console.log(`🆕 New Features V2.2:`);
+    console.log(`   - Fixed socket event names consistency`);
+    console.log(`   - Fixed scratch history response format`); 
+    console.log(`   - Enhanced broadcast events for scratch & winners`);
+    console.log(`   - Admin socket event handlers`);
+    console.log(`   - Improved real-time synchronization`);
+    console.log(`   - Better error handling & debugging`);
     console.log('========================================');
     
     // Initialize database with default data
