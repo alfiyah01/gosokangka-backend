@@ -1,6 +1,6 @@
 // ========================================
-// GOSOK ANGKA BACKEND - FIXED VERSION 3.0.0
-// Added Token Purchase System & Enhanced Features
+// GOSOK ANGKA BACKEND - FIXED VERSION 3.1.0
+// Added Forced Winning Number Feature
 // ========================================
 
 const express = require('express');
@@ -208,7 +208,7 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// DATABASE SCHEMAS - UPDATED WITH TOKEN SYSTEM
+// DATABASE SCHEMAS - UPDATED WITH FORCED WINNING
 // ========================================
 
 const userSchema = new mongoose.Schema({
@@ -221,9 +221,10 @@ const userSchema = new mongoose.Schema({
     winCount: { type: Number, default: 0 },
     lastScratchDate: { type: Date },
     customWinRate: { type: Number, default: null },
-    freeScratchesRemaining: { type: Number, default: 1 }, // NEW: Free scratches remaining
-    paidScratchesRemaining: { type: Number, default: 0 }, // NEW: Paid scratches remaining
-    totalPurchasedScratches: { type: Number, default: 0 }, // NEW: Total purchased scratches
+    freeScratchesRemaining: { type: Number, default: 1 }, 
+    paidScratchesRemaining: { type: Number, default: 0 }, 
+    totalPurchasedScratches: { type: Number, default: 0 },
+    forcedWinningNumber: { type: String, default: null }, // NEW: Admin bisa set angka khusus untuk user
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -250,7 +251,7 @@ const scratchSchema = new mongoose.Schema({
     scratchNumber: { type: String, required: true },
     isWin: { type: Boolean, default: false },
     prizeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prize' },
-    isPaid: { type: Boolean, default: false }, // NEW: Whether this was a paid scratch
+    isPaid: { type: Boolean, default: false },
     scratchDate: { type: Date, default: Date.now }
 });
 
@@ -267,14 +268,13 @@ const winnerSchema = new mongoose.Schema({
 const gameSettingsSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true },
     winProbability: { type: Number, default: 5 },
-    maxFreeScratchesPerDay: { type: Number, default: 1 }, // RENAMED from maxScratchesPerDay
-    minFreeScratchesPerDay: { type: Number, default: 1 }, // NEW: Minimum free scratches
-    scratchTokenPrice: { type: Number, default: 10000 }, // NEW: Price per scratch token in Rupiah
+    maxFreeScratchesPerDay: { type: Number, default: 1 },
+    minFreeScratchesPerDay: { type: Number, default: 1 },
+    scratchTokenPrice: { type: Number, default: 10000 },
     isGameActive: { type: Boolean, default: true },
     resetTime: { type: String, default: '00:00' }
 });
 
-// NEW: Token Purchase Schema
 const tokenPurchaseSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
@@ -580,7 +580,7 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
     res.json({
         message: '🎯 Gosok Angka Backend API',
-        version: '3.0.0',
+        version: '3.1.0',
         status: 'Production Ready',
         domain: 'gosokangkahoki.com',
         features: {
@@ -590,7 +590,8 @@ app.get('/', (req, res) => {
             database: 'MongoDB Atlas connected',
             cors: 'Production domains configured',
             winRate: 'Per-user win rate support',
-            tokenPurchase: 'Token purchase system enabled'
+            tokenPurchase: 'Token purchase system enabled',
+            forcedWinning: 'Admin can set winning number for users'
         },
         endpoints: {
             auth: '/api/auth',
@@ -818,7 +819,7 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
 });
 
 // ========================================
-// GAME ROUTES - UPDATED WITH TOKEN SYSTEM
+// GAME ROUTES - UPDATED WITH FORCED WINNING
 // ========================================
 
 app.post('/api/game/scratch', verifyToken, async (req, res) => {
@@ -849,7 +850,16 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             }
         }
         
-        const scratchNumber = Math.floor(1000 + Math.random() * 9000).toString();
+        // Generate scratch number - Check for forced winning number first
+        let scratchNumber;
+        if (user.forcedWinningNumber) {
+            scratchNumber = user.forcedWinningNumber;
+            // Clear forced winning number after use
+            user.forcedWinningNumber = null;
+            console.log(`🎯 Using forced winning number for ${user.name}: ${scratchNumber}`);
+        } else {
+            scratchNumber = Math.floor(1000 + Math.random() * 9000).toString();
+        }
         
         let isWin = false;
         let prize = null;
@@ -1017,7 +1027,7 @@ app.get('/api/user/history', verifyToken, async (req, res) => {
 // PUBLIC ROUTES (NO AUTH REQUIRED)
 // ========================================
 
-// Get active prizes (for game app)
+// Get active prizes (for game app) - UPDATED to show all prizes regardless of stock
 app.get('/api/public/prizes', async (req, res) => {
     try {
         const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
@@ -1061,7 +1071,7 @@ app.get('/api/public/game-settings', async (req, res) => {
 });
 
 // ========================================
-// ADMIN ROUTES - FIXED PASSWORD ROUTES
+// ADMIN ROUTES
 // ========================================
 
 app.post('/api/admin/login', async (req, res) => {
@@ -1258,6 +1268,7 @@ app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, async (req, res) =
                 totalWins: user.winCount || 0,
                 winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0,
                 customWinRate: user.customWinRate,
+                forcedWinningNumber: user.forcedWinningNumber,
                 totalPurchasedScratches: user.totalPurchasedScratches || 0
             }
         });
@@ -1359,6 +1370,55 @@ app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, async (re
         });
     } catch (error) {
         console.error('❌ Update win rate error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Set forced winning number for user
+app.put('/api/admin/users/:userId/forced-winning', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { winningNumber } = req.body;
+        
+        console.log('📝 Set forced winning number for user:', userId, 'to', winningNumber);
+        
+        // Validate winning number
+        if (winningNumber !== null && (winningNumber.length !== 4 || isNaN(winningNumber))) {
+            return res.status(400).json({ error: 'Winning number harus 4 digit angka atau null' });
+        }
+        
+        // Validate userId format
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('❌ Invalid userId format:', userId);
+            return res.status(400).json({ error: 'Invalid user ID format' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            console.error('❌ User not found:', userId);
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
+        user.forcedWinningNumber = winningNumber;
+        await user.save();
+        
+        console.log('✅ Forced winning number set successfully for user:', userId);
+        
+        // Broadcast user update
+        socketManager.broadcastUserUpdate({
+            type: 'forced_winning_updated',
+            userId: user._id,
+            winningNumber: winningNumber,
+            adminId: req.userId
+        });
+        
+        res.json({ 
+            message: 'Forced winning number berhasil diset',
+            userId: user._id,
+            winningNumber: winningNumber
+        });
+    } catch (error) {
+        console.error('❌ Set forced winning error:', error);
         res.status(500).json({ error: 'Server error: ' + error.message });
     }
 });
@@ -2101,6 +2161,7 @@ app.use((req, res) => {
             'GET /api/admin/users/:userId',
             'POST /api/admin/users/:userId/reset-password',
             'PUT /api/admin/users/:userId/win-rate',
+            'PUT /api/admin/users/:userId/forced-winning',
             'GET /api/admin/game-settings',
             'PUT /api/admin/game-settings',
             'GET /api/admin/prizes',
@@ -2149,7 +2210,7 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V3.0');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V3.1');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
@@ -2159,12 +2220,13 @@ server.listen(PORT, () => {
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
-    console.log(`🆕 New Features V3.0:`);
+    console.log(`🆕 New Features V3.1:`);
     console.log(`   - Token purchase system`);
     console.log(`   - Min/Max free scratches settings`);
     console.log(`   - Winner claim status management`);
     console.log(`   - Enhanced analytics with token sales`);
     console.log(`   - Per-user scratch token management`);
+    console.log(`   - Forced winning number for users`);
     console.log('========================================');
     
     // Initialize database with default data
