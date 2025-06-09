@@ -2,7 +2,7 @@
 // GOSOK ANGKA BACKEND - PRODUCTION READY
 // Fixed Version untuk gosokangkahoki.com
 // Updated for Realtime Sync & Better Integration
-// Version 2.2.0 - Fixed Socket Events & Response Formats
+// Version 2.3.0 - Fixed Password Routes & Added Per-User Win Rate
 // ========================================
 
 const express = require('express');
@@ -17,6 +17,17 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
+// CHECK CRITICAL ENV VARS
+if (!process.env.JWT_SECRET) {
+    console.error('❌ FATAL ERROR: JWT_SECRET is not defined in environment variables!');
+    process.exit(1);
+}
+if (!process.env.MONGODB_URI) {
+    console.error('❌ FATAL ERROR: MONGODB_URI is not defined in environment variables!');
+    process.exit(1);
+}
+console.log('✅ Environment variables configured');
+
 // ========================================
 // DATABASE CONNECTION - FIXED
 // ========================================
@@ -24,10 +35,6 @@ async function connectDB() {
     try {
         const mongoURI = process.env.MONGODB_URI;
         
-        if (!mongoURI) {
-            throw new Error('MONGODB_URI tidak ditemukan di environment variables');
-        }
-
         console.log('🔌 Connecting to MongoDB...');
         
         await mongoose.connect(mongoURI, {
@@ -168,7 +175,7 @@ const io = socketIO(server, {
 // Global socket manager for broadcasting updates - FIXED EVENT NAMES
 const socketManager = {
     broadcastPrizeUpdate: (data) => {
-        io.emit('prizes:updated', data); // Fixed from 'prize:updated'
+        io.emit('prizes:updated', data);
         console.log('📡 Broadcasting prize update:', data.type);
     },
     broadcastSettingsUpdate: (data) => {
@@ -176,7 +183,7 @@ const socketManager = {
         console.log('📡 Broadcasting settings update');
     },
     broadcastUserUpdate: (data) => {
-        io.emit('users:updated', data); // Fixed from 'user:updated'
+        io.emit('users:updated', data);
         console.log('📡 Broadcasting user update:', data.type);
     },
     broadcastNewWinner: (data) => {
@@ -204,7 +211,7 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// DATABASE SCHEMAS
+// DATABASE SCHEMAS - UPDATED WITH WIN RATE
 // ========================================
 
 const userSchema = new mongoose.Schema({
@@ -216,6 +223,7 @@ const userSchema = new mongoose.Schema({
     scratchCount: { type: Number, default: 0 },
     winCount: { type: Number, default: 0 },
     lastScratchDate: { type: Date },
+    customWinRate: { type: Number, default: null }, // Per-user win rate (0-100), null = use global setting
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -257,7 +265,7 @@ const winnerSchema = new mongoose.Schema({
 
 const gameSettingsSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true },
-    winProbability: { type: Number, default: 5 },
+    winProbability: { type: Number, default: 5 }, // Global win rate (0-100)
     maxScratchesPerDay: { type: Number, default: 1 },
     isGameActive: { type: Boolean, default: true },
     resetTime: { type: String, default: '00:00' }
@@ -286,13 +294,15 @@ const GameSettings = mongoose.model('GameSettings', gameSettingsSchema);
 const Chat = mongoose.model('Chat', chatSchema);
 
 // ========================================
-// MIDDLEWARE
+// MIDDLEWARE - ENHANCED
 // ========================================
 
 const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
     
     if (!token) {
+        console.error('❌ No token provided for:', req.path);
         return res.status(401).json({ error: 'No token provided' });
     }
     
@@ -300,14 +310,17 @@ const verifyToken = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.userId = decoded.userId;
         req.userType = decoded.userType;
+        console.log('✅ Token verified:', { userId: decoded.userId, userType: decoded.userType });
         next();
     } catch (error) {
-        return res.status(403).json({ error: 'Invalid token' });
+        console.error('❌ Token verification failed:', error.message);
+        return res.status(403).json({ error: 'Invalid token: ' + error.message });
     }
 };
 
 const verifyAdmin = (req, res, next) => {
     if (req.userType !== 'admin') {
+        console.error('❌ Admin access required for:', req.userId);
         return res.status(403).json({ error: 'Admin access required' });
     }
     next();
@@ -344,7 +357,6 @@ io.on('connection', (socket) => {
         // Handle admin events
         socket.on('admin:settings-changed', async (data) => {
             try {
-                // Broadcast to all clients except sender
                 socket.broadcast.emit('settings:updated', data);
                 console.log('📡 Admin changed settings, broadcasting to all clients');
             } catch (error) {
@@ -550,7 +562,7 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
     res.json({
         message: '🎯 Gosok Angka Backend API',
-        version: '2.2.0',
+        version: '2.3.0',
         status: 'Production Ready',
         domain: 'gosokangkahoki.com',
         features: {
@@ -558,7 +570,8 @@ app.get('/', (req, res) => {
             chat: 'Live chat support', 
             auth: 'Email/Phone login support',
             database: 'MongoDB Atlas connected',
-            cors: 'Production domains configured'
+            cors: 'Production domains configured',
+            winRate: 'Per-user win rate support'
         },
         endpoints: {
             auth: '/api/auth',
@@ -595,6 +608,16 @@ app.get('/health', (req, res) => {
 app.get('/api/status', (req, res) => {
     res.json({
         status: 'OK',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Test auth endpoint
+app.get('/api/admin/test-auth', verifyToken, verifyAdmin, (req, res) => {
+    res.json({
+        message: 'Auth test successful',
+        userId: req.userId,
+        userType: req.userType,
         timestamp: new Date().toISOString()
     });
 });
@@ -766,7 +789,7 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
 });
 
 // ========================================
-// GAME ROUTES
+// GAME ROUTES - UPDATED WITH PER-USER WIN RATE
 // ========================================
 
 app.post('/api/game/scratch', verifyToken, async (req, res) => {
@@ -792,6 +815,7 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         let prize = null;
         let winner = null;
         
+        // Check for exact match first (guaranteed win)
         const activePrize = await Prize.findOne({ 
             winningNumber: scratchNumber,
             stock: { $gt: 0 },
@@ -812,6 +836,37 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                 newStock: prize.stock,
                 message: 'Prize stock updated'
             });
+        } else {
+            // If no exact match, check win probability
+            // Use per-user win rate if set, otherwise use global win rate
+            const winRate = user.customWinRate !== null ? user.customWinRate : settings.winProbability;
+            console.log(`🎲 Win rate for ${user.name}: ${winRate}% (${user.customWinRate !== null ? 'custom' : 'global'})`);
+            
+            const randomChance = Math.random() * 100;
+            if (randomChance <= winRate) {
+                // User wins! Find a random available prize
+                const availablePrizes = await Prize.find({
+                    stock: { $gt: 0 },
+                    isActive: true
+                });
+                
+                if (availablePrizes.length > 0) {
+                    // Select random prize
+                    prize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+                    isWin = true;
+                    
+                    prize.stock -= 1;
+                    await prize.save();
+                    
+                    // Broadcast prize stock update
+                    socketManager.broadcastPrizeUpdate({
+                        type: 'stock_updated',
+                        prizeId: prize._id,
+                        newStock: prize.stock,
+                        message: 'Prize stock updated'
+                    });
+                }
+            }
         }
         
         const scratch = new Scratch({
@@ -944,7 +999,7 @@ app.get('/api/public/game-settings', async (req, res) => {
 });
 
 // ========================================
-// ADMIN ROUTES
+// ADMIN ROUTES - FIXED PASSWORD ROUTES
 // ========================================
 
 app.post('/api/admin/login', async (req, res) => {
@@ -988,10 +1043,12 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
-// Change admin password
+// FIXED: Change admin password
 app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;
+        
+        console.log('📝 Change password request for admin:', req.userId);
         
         if (!oldPassword || !newPassword) {
             return res.status(400).json({ error: 'Password lama dan baru harus diisi' });
@@ -1003,11 +1060,13 @@ app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res
         
         const admin = await Admin.findById(req.userId);
         if (!admin) {
+            console.error('❌ Admin not found:', req.userId);
             return res.status(404).json({ error: 'Admin tidak ditemukan' });
         }
         
         const isValidPassword = await bcrypt.compare(oldPassword, admin.password);
         if (!isValidPassword) {
+            console.error('❌ Invalid old password for admin:', req.userId);
             return res.status(400).json({ error: 'Password lama salah' });
         }
         
@@ -1015,10 +1074,11 @@ app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res
         admin.password = hashedPassword;
         await admin.save();
         
+        console.log('✅ Password changed successfully for admin:', req.userId);
         res.json({ message: 'Password berhasil diubah' });
     } catch (error) {
-        console.error('Change admin password error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('❌ Change admin password error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
     }
 });
 
@@ -1125,7 +1185,8 @@ app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, async (req, res) =
             stats: {
                 totalScratches: user.scratchCount || 0,
                 totalWins: user.winCount || 0,
-                winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0
+                winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0,
+                customWinRate: user.customWinRate
             }
         });
     } catch (error) {
@@ -1134,24 +1195,35 @@ app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, async (req, res) =
     }
 });
 
-// New endpoint: Reset user password by admin
+// FIXED: Reset user password by admin
 app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
         const { newPassword } = req.body;
         
+        console.log('📝 Reset password request for user:', userId);
+        
         if (!newPassword || newPassword.length < 6) {
             return res.status(400).json({ error: 'Password baru harus minimal 6 karakter' });
         }
         
+        // Validasi userId format
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('❌ Invalid userId format:', userId);
+            return res.status(400).json({ error: 'Invalid user ID format' });
+        }
+        
         const user = await User.findById(userId);
         if (!user) {
+            console.error('❌ User not found:', userId);
             return res.status(404).json({ error: 'User tidak ditemukan' });
         }
         
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
         await user.save();
+        
+        console.log('✅ Password reset successfully for user:', userId);
         
         // Broadcast user update
         socketManager.broadcastUserUpdate({
@@ -1165,8 +1237,57 @@ app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, as
             userId: user._id
         });
     } catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('❌ Reset password error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Update user win rate
+app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { winRate } = req.body;
+        
+        console.log('📝 Update win rate request for user:', userId, 'to', winRate);
+        
+        // Validate win rate
+        if (winRate !== null && (winRate < 0 || winRate > 100)) {
+            return res.status(400).json({ error: 'Win rate harus antara 0-100 atau null' });
+        }
+        
+        // Validate userId format
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('❌ Invalid userId format:', userId);
+            return res.status(400).json({ error: 'Invalid user ID format' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            console.error('❌ User not found:', userId);
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
+        user.customWinRate = winRate;
+        await user.save();
+        
+        console.log('✅ Win rate updated successfully for user:', userId);
+        
+        // Broadcast user update
+        socketManager.broadcastUserUpdate({
+            type: 'win_rate_updated',
+            userId: user._id,
+            winRate: winRate,
+            adminId: req.userId
+        });
+        
+        res.json({ 
+            message: 'Win rate berhasil diupdate',
+            userId: user._id,
+            winRate: winRate
+        });
+    } catch (error) {
+        console.error('❌ Update win rate error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
     }
 });
 
@@ -1217,7 +1338,8 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
             settings: {
                 isGameActive: settings.isGameActive,
                 maxScratchesPerDay: settings.maxScratchesPerDay,
-                resetTime: settings.resetTime
+                resetTime: settings.resetTime,
+                winProbability: settings.winProbability
             }
         });
         
@@ -1232,17 +1354,6 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
 app.get('/api/admin/prizes', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const prizes = await Prize.find().sort({ createdAt: -1 });
-        res.json(prizes);
-    } catch (error) {
-        console.error('Get prizes error:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Also allow public access to prizes (for compatibility)
-app.get('/api/admin/prizes', async (req, res) => {
-    try {
-        const prizes = await Prize.find({ isActive: true }).sort({ createdAt: -1 });
         res.json(prizes);
     } catch (error) {
         console.error('Get prizes error:', error);
@@ -1357,11 +1468,11 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, async (req, r
 
 app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { limit = 50 } = req.query; // Default 50 untuk konsistensi dengan admin panel
+        const { limit = 50 } = req.query;
         
         const winners = await Winner.find()
-            .populate('userId', 'name email phoneNumber') // Tambah phoneNumber
-            .populate('prizeId', 'name value type') // Tambah type
+            .populate('userId', 'name email phoneNumber')
+            .populate('prizeId', 'name value type')
             .sort({ scratchDate: -1 })
             .limit(parseInt(limit));
             
@@ -1372,7 +1483,7 @@ app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) 
     }
 });
 
-// Get all scratch history - FIXED RESPONSE FORMAT
+// Get all scratch history
 app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { page = 1, limit = 50 } = req.query;
@@ -1386,7 +1497,6 @@ app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res)
             
         const total = await Scratch.countDocuments();
         
-        // Return as object with scratches array for consistency
         res.json({
             scratches: scratches,
             total: total,
@@ -1678,11 +1788,13 @@ async function initializeDatabase() {
 app.use((req, res) => {
     res.status(404).json({ 
         error: 'Endpoint not found',
+        requestedPath: req.path,
         availableEndpoints: [
             'GET /',
             'GET /health',
             'GET /api/health',
             'GET /api/status',
+            'GET /api/admin/test-auth',
             'POST /api/auth/register',
             'POST /api/auth/login',
             'GET /api/user/profile',
@@ -1696,6 +1808,7 @@ app.use((req, res) => {
             'GET /api/admin/users',
             'GET /api/admin/users/:userId',
             'POST /api/admin/users/:userId/reset-password',
+            'PUT /api/admin/users/:userId/win-rate',
             'GET /api/admin/game-settings',
             'PUT /api/admin/game-settings',
             'GET /api/admin/prizes',
@@ -1739,7 +1852,7 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.2');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.3');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
@@ -1749,13 +1862,12 @@ server.listen(PORT, () => {
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
-    console.log(`🆕 New Features V2.2:`);
-    console.log(`   - Fixed socket event names consistency`);
-    console.log(`   - Fixed scratch history response format`); 
-    console.log(`   - Enhanced broadcast events for scratch & winners`);
-    console.log(`   - Admin socket event handlers`);
-    console.log(`   - Improved real-time synchronization`);
-    console.log(`   - Better error handling & debugging`);
+    console.log(`🆕 New Features V2.3:`);
+    console.log(`   - Fixed password change/reset routes`);
+    console.log(`   - Added per-user win rate control`);
+    console.log(`   - Enhanced error handling & logging`);
+    console.log(`   - Better token validation`);
+    console.log(`   - New endpoint: PUT /api/admin/users/:userId/win-rate`);
     console.log('========================================');
     
     // Initialize database with default data
