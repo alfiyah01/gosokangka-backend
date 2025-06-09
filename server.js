@@ -1,8 +1,6 @@
 // ========================================
-// GOSOK ANGKA BACKEND - PRODUCTION READY
-// Fixed Version untuk gosokangkahoki.com
-// Updated for Realtime Sync & Better Integration
-// Version 2.3.0 - Fixed Password Routes & Added Per-User Win Rate
+// GOSOK ANGKA BACKEND - FIXED VERSION 3.0.0
+// Added Token Purchase System & Enhanced Features
 // ========================================
 
 const express = require('express');
@@ -29,7 +27,7 @@ if (!process.env.MONGODB_URI) {
 console.log('✅ Environment variables configured');
 
 // ========================================
-// DATABASE CONNECTION - FIXED
+// DATABASE CONNECTION
 // ========================================
 async function connectDB() {
     try {
@@ -57,14 +55,14 @@ async function connectDB() {
 connectDB();
 
 // ========================================
-// CORS CONFIGURATION - CLEAN VERSION
+// CORS CONFIGURATION
 // ========================================
 const allowedOrigins = [
     // Netlify domains
     'https://gosokangkahoki.netlify.app',     
     'https://www.gosokangkahoki.netlify.app',
-    /^https:\/\/.*--gosokangkahoki\.netlify\.app$/,  // Preview URLs
-    /^https:\/\/.*\.gosokangkahoki\.netlify\.app$/,  // Branch deploys
+    /^https:\/\/.*--gosokangkahoki\.netlify\.app$/,
+    /^https:\/\/.*\.gosokangkahoki\.netlify\.app$/,
     
     // Custom domains
     'https://gosokangkahoki.com',             
@@ -88,19 +86,16 @@ app.use(cors({
     origin: function(origin, callback) {
         console.log('🔍 CORS Debug - Request origin:', origin);
         
-        // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) {
             console.log('✅ CORS: Allowing request with no origin');
             return callback(null, true);
         }
         
-        // Check against allowed origins (strings)
         if (allowedOrigins.includes(origin)) {
             console.log('✅ CORS: Origin allowed (exact match):', origin);
             return callback(null, true);
         }
         
-        // Check against allowed origins (regex patterns)
         const isAllowed = allowedOrigins.some(allowed => {
             if (allowed instanceof RegExp) {
                 return allowed.test(origin);
@@ -113,13 +108,11 @@ app.use(cors({
             return callback(null, true);
         }
         
-        // Temporary: Allow all .netlify.app domains for debugging
         if (origin.includes('.netlify.app')) {
             console.log('⚠️ CORS: Temporarily allowing Netlify domain:', origin);
             return callback(null, true);
         }
         
-        // Block unauthorized origins
         console.log('❌ CORS: Origin blocked:', origin);
         const error = new Error(`CORS blocked: ${origin} not allowed`);
         error.status = 403;
@@ -150,7 +143,7 @@ app.options('*', (req, res) => {
 });
 
 // ========================================
-// SOCKET.IO SETUP - ENHANCED FOR REALTIME SYNC
+// SOCKET.IO SETUP
 // ========================================
 const io = socketIO(server, {
     cors: {
@@ -172,7 +165,7 @@ const io = socketIO(server, {
     allowEIO3: true
 });
 
-// Global socket manager for broadcasting updates - FIXED EVENT NAMES
+// Global socket manager
 const socketManager = {
     broadcastPrizeUpdate: (data) => {
         io.emit('prizes:updated', data);
@@ -197,6 +190,10 @@ const socketManager = {
     broadcastNewUser: (data) => {
         io.emit('user:new-registration', data);
         console.log('📡 Broadcasting new user registration');
+    },
+    broadcastTokenPurchase: (data) => {
+        io.emit('token:purchased', data);
+        console.log('📡 Broadcasting token purchase');
     }
 };
 
@@ -211,7 +208,7 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// DATABASE SCHEMAS - UPDATED WITH WIN RATE
+// DATABASE SCHEMAS - UPDATED WITH TOKEN SYSTEM
 // ========================================
 
 const userSchema = new mongoose.Schema({
@@ -223,7 +220,10 @@ const userSchema = new mongoose.Schema({
     scratchCount: { type: Number, default: 0 },
     winCount: { type: Number, default: 0 },
     lastScratchDate: { type: Date },
-    customWinRate: { type: Number, default: null }, // Per-user win rate (0-100), null = use global setting
+    customWinRate: { type: Number, default: null },
+    freeScratchesRemaining: { type: Number, default: 1 }, // NEW: Free scratches remaining
+    paidScratchesRemaining: { type: Number, default: 0 }, // NEW: Paid scratches remaining
+    totalPurchasedScratches: { type: Number, default: 0 }, // NEW: Total purchased scratches
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -250,6 +250,7 @@ const scratchSchema = new mongoose.Schema({
     scratchNumber: { type: String, required: true },
     isWin: { type: Boolean, default: false },
     prizeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Prize' },
+    isPaid: { type: Boolean, default: false }, // NEW: Whether this was a paid scratch
     scratchDate: { type: Date, default: Date.now }
 });
 
@@ -265,10 +266,26 @@ const winnerSchema = new mongoose.Schema({
 
 const gameSettingsSchema = new mongoose.Schema({
     winningNumber: { type: String, required: true },
-    winProbability: { type: Number, default: 5 }, // Global win rate (0-100)
-    maxScratchesPerDay: { type: Number, default: 1 },
+    winProbability: { type: Number, default: 5 },
+    maxFreeScratchesPerDay: { type: Number, default: 1 }, // RENAMED from maxScratchesPerDay
+    minFreeScratchesPerDay: { type: Number, default: 1 }, // NEW: Minimum free scratches
+    scratchTokenPrice: { type: Number, default: 10000 }, // NEW: Price per scratch token in Rupiah
     isGameActive: { type: Boolean, default: true },
     resetTime: { type: String, default: '00:00' }
+});
+
+// NEW: Token Purchase Schema
+const tokenPurchaseSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
+    quantity: { type: Number, required: true },
+    pricePerToken: { type: Number, required: true },
+    totalAmount: { type: Number, required: true },
+    paymentStatus: { type: String, enum: ['pending', 'completed', 'cancelled'], default: 'pending' },
+    paymentMethod: { type: String },
+    notes: { type: String },
+    purchaseDate: { type: Date, default: Date.now },
+    completedDate: { type: Date }
 });
 
 const chatSchema = new mongoose.Schema({
@@ -292,9 +309,10 @@ const Scratch = mongoose.model('Scratch', scratchSchema);
 const Winner = mongoose.model('Winner', winnerSchema);
 const GameSettings = mongoose.model('GameSettings', gameSettingsSchema);
 const Chat = mongoose.model('Chat', chatSchema);
+const TokenPurchase = mongoose.model('TokenPurchase', tokenPurchaseSchema);
 
 // ========================================
-// MIDDLEWARE - ENHANCED
+// MIDDLEWARE
 // ========================================
 
 const verifyToken = (req, res, next) => {
@@ -327,7 +345,7 @@ const verifyAdmin = (req, res, next) => {
 };
 
 // ========================================
-// SOCKET.IO HANDLERS - ENHANCED
+// SOCKET.IO HANDLERS
 // ========================================
 
 io.use(async (socket, next) => {
@@ -562,7 +580,7 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
     res.json({
         message: '🎯 Gosok Angka Backend API',
-        version: '2.3.0',
+        version: '3.0.0',
         status: 'Production Ready',
         domain: 'gosokangkahoki.com',
         features: {
@@ -571,14 +589,16 @@ app.get('/', (req, res) => {
             auth: 'Email/Phone login support',
             database: 'MongoDB Atlas connected',
             cors: 'Production domains configured',
-            winRate: 'Per-user win rate support'
+            winRate: 'Per-user win rate support',
+            tokenPurchase: 'Token purchase system enabled'
         },
         endpoints: {
             auth: '/api/auth',
             user: '/api/user', 
             game: '/api/game',
             admin: '/api/admin',
-            public: '/api/public'
+            public: '/api/public',
+            tokenPurchase: '/api/token-purchase'
         },
         timestamp: new Date().toISOString()
     });
@@ -666,11 +686,16 @@ app.post('/api/auth/register', async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
+        // Get default settings for free scratches
+        const settings = await GameSettings.findOne();
+        const defaultFreeScratches = settings?.maxFreeScratchesPerDay || 1;
+        
         const user = new User({
             name,
             email: userEmail.toLowerCase(),
             password: hashedPassword,
-            phoneNumber: userPhone
+            phoneNumber: userPhone,
+            freeScratchesRemaining: defaultFreeScratches
         });
         
         await user.save();
@@ -703,7 +728,9 @@ app.post('/api/auth/register', async (req, res) => {
                 phoneNumber: user.phoneNumber,
                 scratchCount: user.scratchCount,
                 winCount: user.winCount,
-                status: user.status
+                status: user.status,
+                freeScratchesRemaining: user.freeScratchesRemaining,
+                paidScratchesRemaining: user.paidScratchesRemaining
             }
         });
     } catch (error) {
@@ -762,7 +789,9 @@ app.post('/api/auth/login', async (req, res) => {
                 scratchCount: user.scratchCount,
                 winCount: user.winCount,
                 status: user.status,
-                lastScratchDate: user.lastScratchDate
+                lastScratchDate: user.lastScratchDate,
+                freeScratchesRemaining: user.freeScratchesRemaining,
+                paidScratchesRemaining: user.paidScratchesRemaining
             }
         });
     } catch (error) {
@@ -789,7 +818,7 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
 });
 
 // ========================================
-// GAME ROUTES - UPDATED WITH PER-USER WIN RATE
+// GAME ROUTES - UPDATED WITH TOKEN SYSTEM
 // ========================================
 
 app.post('/api/game/scratch', verifyToken, async (req, res) => {
@@ -799,14 +828,25 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             return res.status(400).json({ error: 'Game sedang tidak aktif' });
         }
         
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
         const user = await User.findById(req.userId);
-        if (user.lastScratchDate && user.lastScratchDate >= today) {
-            return res.status(400).json({ 
-                error: 'Kamu sudah gosok hari ini, coba lagi besok!' 
-            });
+        
+        // Check if user has any scratches remaining
+        const totalScratches = (user.freeScratchesRemaining || 0) + (user.paidScratchesRemaining || 0);
+        if (totalScratches <= 0) {
+            // Check if it's a new day
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (!user.lastScratchDate || user.lastScratchDate < today) {
+                // Reset free scratches for new day
+                user.freeScratchesRemaining = settings.maxFreeScratchesPerDay || 1;
+                await user.save();
+            } else {
+                return res.status(400).json({ 
+                    error: 'Tidak ada kesempatan tersisa! Beli token scratch atau tunggu besok.',
+                    needTokens: true 
+                });
+            }
         }
         
         const scratchNumber = Math.floor(1000 + Math.random() * 9000).toString();
@@ -814,6 +854,12 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         let isWin = false;
         let prize = null;
         let winner = null;
+        let isPaidScratch = false;
+        
+        // Use paid scratch first if available
+        if (user.paidScratchesRemaining > 0) {
+            isPaidScratch = true;
+        }
         
         // Check for exact match first (guaranteed win)
         const activePrize = await Prize.findOne({ 
@@ -838,7 +884,6 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             });
         } else {
             // If no exact match, check win probability
-            // Use per-user win rate if set, otherwise use global win rate
             const winRate = user.customWinRate !== null ? user.customWinRate : settings.winProbability;
             console.log(`🎲 Win rate for ${user.name}: ${winRate}% (${user.customWinRate !== null ? 'custom' : 'global'})`);
             
@@ -873,7 +918,8 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             userId: req.userId,
             scratchNumber,
             isWin,
-            prizeId: prize?._id
+            prizeId: prize?._id,
+            isPaid: isPaidScratch
         });
         
         await scratch.save();
@@ -884,6 +930,7 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             userId: req.userId,
             scratchNumber,
             isWin,
+            isPaid: isPaidScratch,
             scratchDate: scratch.scratchDate
         };
         
@@ -917,13 +964,18 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             socketManager.broadcastNewWinner(winnerData);
         }
         
-        await User.findByIdAndUpdate(req.userId, {
-            $inc: {
-                scratchCount: 1,
-                winCount: isWin ? 1 : 0
-            },
-            lastScratchDate: new Date()
-        });
+        // Update user scratch counts
+        if (isPaidScratch) {
+            user.paidScratchesRemaining -= 1;
+        } else {
+            user.freeScratchesRemaining -= 1;
+        }
+        
+        user.scratchCount += 1;
+        if (isWin) user.winCount += 1;
+        user.lastScratchDate = new Date();
+        
+        await user.save();
         
         res.json({
             scratchNumber,
@@ -933,7 +985,13 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                 type: prize.type,
                 value: prize.value,
                 claimCode: winner?.claimCode
-            } : null
+            } : null,
+            remainingScratches: {
+                free: user.freeScratchesRemaining,
+                paid: user.paidScratchesRemaining,
+                total: user.freeScratchesRemaining + user.paidScratchesRemaining
+            },
+            isPaidScratch
         });
     } catch (error) {
         console.error('Scratch error:', error);
@@ -948,7 +1006,7 @@ app.get('/api/user/history', verifyToken, async (req, res) => {
             .sort({ scratchDate: -1 })
             .limit(50);
             
-        res.json(scratches);
+        res.json({ scratches });
     } catch (error) {
         console.error('History error:', error);
         res.status(500).json({ error: 'Server error' });
@@ -970,7 +1028,7 @@ app.get('/api/public/prizes', async (req, res) => {
     }
 });
 
-// Get game settings (for game app)
+// Get game settings with token price (for game app)
 app.get('/api/public/game-settings', async (req, res) => {
     try {
         let settings = await GameSettings.findOne();
@@ -979,7 +1037,9 @@ app.get('/api/public/game-settings', async (req, res) => {
             settings = new GameSettings({
                 winningNumber: '1234',
                 winProbability: 5,
-                maxScratchesPerDay: 1,
+                maxFreeScratchesPerDay: 1,
+                minFreeScratchesPerDay: 1,
+                scratchTokenPrice: 10000,
                 isGameActive: true,
                 resetTime: '00:00'
             });
@@ -989,7 +1049,9 @@ app.get('/api/public/game-settings', async (req, res) => {
         // Only return public-safe fields
         res.json({
             isGameActive: settings.isGameActive,
-            maxScratchesPerDay: settings.maxScratchesPerDay,
+            maxFreeScratchesPerDay: settings.maxFreeScratchesPerDay,
+            minFreeScratchesPerDay: settings.minFreeScratchesPerDay,
+            scratchTokenPrice: settings.scratchTokenPrice,
             resetTime: settings.resetTime
         });
     } catch (error) {
@@ -1087,7 +1149,7 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const [totalUsers, todayScratches, todayWinners, totalPrizesResult] = await Promise.all([
+        const [totalUsers, todayScratches, todayWinners, totalPrizesResult, pendingPurchases] = await Promise.all([
             User.countDocuments(),
             Scratch.countDocuments({ scratchDate: { $gte: today } }),
             Winner.countDocuments({ scratchDate: { $gte: today } }),
@@ -1104,14 +1166,16 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, async (req, res) => {
                     _id: null,
                     total: { $sum: '$prize.value' }
                 }}
-            ])
+            ]),
+            TokenPurchase.countDocuments({ paymentStatus: 'pending' })
         ]);
         
         res.json({
             totalUsers,
             todayScratches,
             todayWinners,
-            totalPrizes: totalPrizesResult[0]?.total || 0
+            totalPrizes: totalPrizesResult[0]?.total || 0,
+            pendingPurchases
         });
     } catch (error) {
         console.error('Dashboard error:', error);
@@ -1178,15 +1242,23 @@ app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, async (req, res) =
             .populate('prizeId')
             .sort({ scratchDate: -1 });
         
+        // Get user's token purchases
+        const tokenPurchases = await TokenPurchase.find({ userId })
+            .populate('adminId', 'name username')
+            .sort({ purchaseDate: -1 })
+            .limit(10);
+        
         res.json({
             user,
             scratches,
             wins,
+            tokenPurchases,
             stats: {
                 totalScratches: user.scratchCount || 0,
                 totalWins: user.winCount || 0,
                 winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0,
-                customWinRate: user.customWinRate
+                customWinRate: user.customWinRate,
+                totalPurchasedScratches: user.totalPurchasedScratches || 0
             }
         });
     } catch (error) {
@@ -1299,7 +1371,9 @@ app.get('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
             settings = new GameSettings({
                 winningNumber: '1234',
                 winProbability: 5,
-                maxScratchesPerDay: 1,
+                maxFreeScratchesPerDay: 1,
+                minFreeScratchesPerDay: 1,
+                scratchTokenPrice: 10000,
                 isGameActive: true,
                 resetTime: '00:00'
             });
@@ -1315,10 +1389,22 @@ app.get('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
 
 app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { winningNumber, winProbability, maxScratchesPerDay, isGameActive, resetTime } = req.body;
+        const { 
+            winningNumber, 
+            winProbability, 
+            maxFreeScratchesPerDay,
+            minFreeScratchesPerDay,
+            scratchTokenPrice,
+            isGameActive, 
+            resetTime 
+        } = req.body;
         
         if (winningNumber && (winningNumber.length !== 4 || isNaN(winningNumber))) {
             return res.status(400).json({ error: 'Winning number harus 4 digit angka' });
+        }
+        
+        if (minFreeScratchesPerDay > maxFreeScratchesPerDay) {
+            return res.status(400).json({ error: 'Minimum tidak boleh lebih besar dari maksimum' });
         }
         
         const settings = await GameSettings.findOneAndUpdate(
@@ -1326,7 +1412,9 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
             { 
                 winningNumber, 
                 winProbability, 
-                maxScratchesPerDay, 
+                maxFreeScratchesPerDay,
+                minFreeScratchesPerDay,
+                scratchTokenPrice,
                 isGameActive,
                 resetTime: resetTime || '00:00'
             },
@@ -1337,7 +1425,9 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, async (req, res) =
         socketManager.broadcastSettingsUpdate({
             settings: {
                 isGameActive: settings.isGameActive,
-                maxScratchesPerDay: settings.maxScratchesPerDay,
+                maxFreeScratchesPerDay: settings.maxFreeScratchesPerDay,
+                minFreeScratchesPerDay: settings.minFreeScratchesPerDay,
+                scratchTokenPrice: settings.scratchTokenPrice,
                 resetTime: settings.resetTime,
                 winProbability: settings.winProbability
             }
@@ -1483,6 +1573,41 @@ app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, async (req, res) 
     }
 });
 
+// NEW: Update winner claim status
+app.put('/api/admin/winners/:winnerId/claim-status', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { winnerId } = req.params;
+        const { claimStatus } = req.body;
+        
+        if (!['pending', 'completed', 'expired'].includes(claimStatus)) {
+            return res.status(400).json({ error: 'Invalid claim status' });
+        }
+        
+        const winner = await Winner.findByIdAndUpdate(
+            winnerId,
+            { 
+                claimStatus,
+                ...(claimStatus === 'completed' && { claimDate: new Date() })
+            },
+            { new: true }
+        )
+        .populate('userId', 'name email phoneNumber')
+        .populate('prizeId', 'name value type');
+        
+        if (!winner) {
+            return res.status(404).json({ error: 'Winner tidak ditemukan' });
+        }
+        
+        res.json({
+            message: 'Status berhasil diupdate',
+            winner
+        });
+    } catch (error) {
+        console.error('Update claim status error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get all scratch history
 app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res) => {
     try {
@@ -1506,6 +1631,158 @@ app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, async (req, res)
         });
     } catch (error) {
         console.error('Get scratch history error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========================================
+// TOKEN PURCHASE ROUTES
+// ========================================
+
+// Get all token purchases (admin)
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { page = 1, limit = 20, status = 'all' } = req.query;
+        
+        let query = {};
+        if (status !== 'all') {
+            query.paymentStatus = status;
+        }
+        
+        const purchases = await TokenPurchase.find(query)
+            .populate('userId', 'name email phoneNumber')
+            .populate('adminId', 'name username')
+            .sort({ purchaseDate: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            
+        const total = await TokenPurchase.countDocuments(query);
+        
+        res.json({
+            purchases,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        console.error('Get token purchases error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create token purchase for user (admin)
+app.post('/api/admin/token-purchase', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { userId, quantity, paymentMethod, notes } = req.body;
+        
+        if (!userId || !quantity || quantity < 1) {
+            return res.status(400).json({ error: 'User ID dan quantity harus diisi' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
+        const settings = await GameSettings.findOne();
+        const pricePerToken = settings?.scratchTokenPrice || 10000;
+        const totalAmount = quantity * pricePerToken;
+        
+        const purchase = new TokenPurchase({
+            userId,
+            adminId: req.userId,
+            quantity,
+            pricePerToken,
+            totalAmount,
+            paymentMethod: paymentMethod || 'cash',
+            notes: notes || ''
+        });
+        
+        await purchase.save();
+        
+        res.status(201).json({
+            message: 'Token purchase created successfully',
+            purchase: await purchase.populate(['userId', 'adminId'])
+        });
+    } catch (error) {
+        console.error('Create token purchase error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Complete token purchase (admin)
+app.put('/api/admin/token-purchase/:purchaseId/complete', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { purchaseId } = req.params;
+        
+        const purchase = await TokenPurchase.findById(purchaseId)
+            .populate('userId');
+            
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase tidak ditemukan' });
+        }
+        
+        if (purchase.paymentStatus === 'completed') {
+            return res.status(400).json({ error: 'Purchase sudah completed' });
+        }
+        
+        // Update user's paid scratches
+        const user = await User.findById(purchase.userId);
+        user.paidScratchesRemaining += purchase.quantity;
+        user.totalPurchasedScratches += purchase.quantity;
+        await user.save();
+        
+        // Update purchase status
+        purchase.paymentStatus = 'completed';
+        purchase.completedDate = new Date();
+        await purchase.save();
+        
+        // Broadcast token purchase
+        socketManager.broadcastTokenPurchase({
+            userId: user._id,
+            quantity: purchase.quantity,
+            totalAmount: purchase.totalAmount
+        });
+        
+        res.json({
+            message: 'Token purchase completed successfully',
+            purchase: await purchase.populate(['userId', 'adminId']),
+            userScratches: {
+                free: user.freeScratchesRemaining,
+                paid: user.paidScratchesRemaining,
+                total: user.freeScratchesRemaining + user.paidScratchesRemaining
+            }
+        });
+    } catch (error) {
+        console.error('Complete token purchase error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Cancel token purchase (admin)
+app.put('/api/admin/token-purchase/:purchaseId/cancel', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { purchaseId } = req.params;
+        
+        const purchase = await TokenPurchase.findById(purchaseId);
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase tidak ditemukan' });
+        }
+        
+        if (purchase.paymentStatus === 'completed') {
+            return res.status(400).json({ error: 'Cannot cancel completed purchase' });
+        }
+        
+        purchase.paymentStatus = 'cancelled';
+        await purchase.save();
+        
+        res.json({
+            message: 'Token purchase cancelled successfully',
+            purchase: await purchase.populate(['userId', 'adminId'])
+        });
+    } catch (error) {
+        console.error('Cancel token purchase error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1541,8 +1818,9 @@ app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
         }
         
         const scratchQuery = period === 'all' ? {} : { scratchDate: dateFilter };
+        const purchaseQuery = period === 'all' ? {} : { purchaseDate: dateFilter };
         
-        const [totalScratches, totalWins, totalPrizeValue] = await Promise.all([
+        const [totalScratches, totalWins, totalPrizeValue, totalTokenSales] = await Promise.all([
             Scratch.countDocuments(scratchQuery),
             Scratch.countDocuments({ ...scratchQuery, isWin: true }),
             Winner.aggregate([
@@ -1558,6 +1836,14 @@ app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
                     _id: null,
                     total: { $sum: '$prize.value' }
                 }}
+            ]),
+            TokenPurchase.aggregate([
+                { $match: { ...purchaseQuery, paymentStatus: 'completed' } },
+                { $group: {
+                    _id: null,
+                    totalQuantity: { $sum: '$quantity' },
+                    totalRevenue: { $sum: '$totalAmount' }
+                }}
             ])
         ]);
         
@@ -1568,7 +1854,9 @@ app.get('/api/admin/analytics', verifyToken, verifyAdmin, async (req, res) => {
             totalScratches,
             totalWins,
             winRate: parseFloat(winRate),
-            totalPrizeValue: totalPrizeValue[0]?.total || 0
+            totalPrizeValue: totalPrizeValue[0]?.total || 0,
+            totalTokensSold: totalTokenSales[0]?.totalQuantity || 0,
+            totalTokenRevenue: totalTokenSales[0]?.totalRevenue || 0
         });
     } catch (error) {
         console.error('Get analytics error:', error);
@@ -1582,16 +1870,18 @@ app.get('/api/admin/analytics/users', verifyToken, verifyAdmin, async (req, res)
         const now = new Date();
         const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
         
-        const [totalUsers, activeUsers, newUsers] = await Promise.all([
+        const [totalUsers, activeUsers, newUsers, paidUsers] = await Promise.all([
             User.countDocuments(),
             User.countDocuments({ lastScratchDate: { $gte: thirtyDaysAgo } }),
-            User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+            User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+            User.countDocuments({ totalPurchasedScratches: { $gt: 0 } })
         ]);
         
         res.json({
             totalUsers,
             activeUsers,
-            newUsers
+            newUsers,
+            paidUsers
         });
     } catch (error) {
         console.error('Get user analytics error:', error);
@@ -1721,7 +2011,9 @@ async function createDefaultSettings() {
             const settings = new GameSettings({
                 winningNumber: '1234',
                 winProbability: 5,
-                maxScratchesPerDay: 1,
+                maxFreeScratchesPerDay: 1,
+                minFreeScratchesPerDay: 1,
+                scratchTokenPrice: 10000,
                 isGameActive: true,
                 resetTime: '00:00'
             });
@@ -1816,9 +2108,14 @@ app.use((req, res) => {
             'PUT /api/admin/prizes/:prizeId',
             'DELETE /api/admin/prizes/:prizeId',
             'GET /api/admin/recent-winners',
+            'PUT /api/admin/winners/:winnerId/claim-status',
             'GET /api/admin/scratch-history',
             'GET /api/admin/analytics',
-            'GET /api/admin/analytics/users'
+            'GET /api/admin/analytics/users',
+            'GET /api/admin/token-purchases',
+            'POST /api/admin/token-purchase',
+            'PUT /api/admin/token-purchase/:purchaseId/complete',
+            'PUT /api/admin/token-purchase/:purchaseId/cancel'
         ]
     });
 });
@@ -1852,7 +2149,7 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V2.3');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION V3.0');
     console.log('========================================');
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Domain: gosokangkahoki.com`);
@@ -1862,12 +2159,12 @@ server.listen(PORT, () => {
     console.log(`🎮 Game features: Scratch cards, Prizes, Chat`);
     console.log(`📊 Database: MongoDB Atlas`);
     console.log(`🔐 Security: JWT Authentication, CORS configured`);
-    console.log(`🆕 New Features V2.3:`);
-    console.log(`   - Fixed password change/reset routes`);
-    console.log(`   - Added per-user win rate control`);
-    console.log(`   - Enhanced error handling & logging`);
-    console.log(`   - Better token validation`);
-    console.log(`   - New endpoint: PUT /api/admin/users/:userId/win-rate`);
+    console.log(`🆕 New Features V3.0:`);
+    console.log(`   - Token purchase system`);
+    console.log(`   - Min/Max free scratches settings`);
+    console.log(`   - Winner claim status management`);
+    console.log(`   - Enhanced analytics with token sales`);
+    console.log(`   - Per-user scratch token management`);
     console.log('========================================');
     
     // Initialize database with default data
