@@ -1,7 +1,7 @@
 {
   "name": "gosokangka-backend",
-  "version": "2.0.0",
-  "description": "Backend API for Gosok Angka Hoki - Production Ready Scratch Card Game with Realtime Chat",
+  "version": "4.1.0",
+  "description": "Backend API for Gosok Angka Hoki - Production Ready Scratch Card Game with Enhanced Features",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0",
@@ -37,7 +37,10 @@
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.3.1",
     "socket.io": "^4.7.4",
-    "http": "^0.0.1-security"
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
