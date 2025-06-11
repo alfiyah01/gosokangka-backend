@@ -1,47 +1,48 @@
 {
-  "name": "gosok-angka-backend",
-  "version": "4.3.0",
-  "description": "Gosok Angka Backend - Fixed Edition v4.3.0 - All Issues Resolved",
+  "name": "gosok-angka-backend-secure",
+  "version": "4.2.0",
+  "description": "Gosok Angka Hoki Backend API with Enhanced Security Features",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "prod": "NODE_ENV=production node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "gosok-angka",
-    "scratch-game",
     "nodejs",
     "express",
     "mongodb",
-    "socket.io",
-    "lottery"
+    "socketio",
+    "gaming",
+    "security",
+    "api"
   ],
   "author": "Gosok Angka Team",
-  "license": "MIT",
+  "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
-    "mongoose": "^7.6.3",
+    "mongoose": "^8.0.3",
     "cors": "^2.8.5",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.7.4",
-    "dotenv": "^16.3.1"
+    "socket.io": "^4.7.5",
+    "dotenv": "^16.3.1",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "validator": "^13.11.0",
+    "xss": "^1.0.14",
+    "express-mongo-sanitize": "^2.2.0",
+    "speakeasy": "^2.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.2"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=16.0.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/your-username/gosok-angka-backend.git"
   },
-  "homepage": "https://gosokangkahoki.com",
-  "bugs": {
-    "url": "https://github.com/your-username/gosok-angka-backend/issues"
-  }
+  "homepage": "https://gosokangkahoki.com"
 }
