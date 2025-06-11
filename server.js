@@ -2662,6 +2662,15 @@ async function initializeDatabase() {
 }
 
 // ========================================
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        uptime: process.uptime(),
+        version: '4.2.0'
+    });
+});
 // ERROR HANDLING
 // ========================================
 
