@@ -3007,6 +3007,7 @@ app.get('/api/public/bank-account', async (req, res) => {
 
 async function createDefaultAdmin() {
     try {
+        console.log('🔧 Checking default admin...');
         const adminExists = await Admin.findOne({ username: 'admin' });
         
         if (!adminExists) {
@@ -3023,9 +3024,14 @@ async function createDefaultAdmin() {
             });
             
             await admin.save();
+            console.log('✅ Default admin created successfully: admin / admin123');
             logger.info('✅ Default admin created: admin / admin123');
+        } else {
+            console.log('✅ Default admin already exists');
+            logger.info('✅ Default admin already exists');
         }
     } catch (error) {
+        console.error('❌ Error creating default admin:', error);
         logger.error('Error creating default admin:', error);
     }
 }
@@ -3156,10 +3162,14 @@ async function createDefaultQRISSettings() {
                 dailyLimit: 50000000
             });
             
-            await defaultQRIS.save();
+             await defaultQRIS.save();
+            console.log('✅ Default QRIS settings created');
             logger.info('✅ Default QRIS settings created');
+        } else {
+            console.log('✅ QRIS settings already exist');
         }
     } catch (error) {
+        console.error('❌ Error creating default QRIS settings:', error);
         logger.error('Error creating default QRIS settings:', error);
     }
 }
@@ -3217,7 +3227,17 @@ async function migrateExistingUsers() {
 
 async function initializeDatabase() {
     try {
-        logger.info('🚀 Initializing production database...');
+        console.log('🚀 Starting database initialization...');
+            logger.info('🚀 Starting database initialization...');
+            
+            // Wait for database connection to be stable
+            if (mongoose.connection.readyState !== 1) {
+                console.log('⏳ Waiting for database connection...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                continue;
+            }
+            
+            console.log('📊 Database connection confirmed, initializing data...');
         
         await createIndexes();
         await createDefaultAdmin();
@@ -3227,7 +3247,8 @@ async function initializeDatabase() {
         await createDefaultQRISSettings();
         await migrateExistingUsers();
         
-        logger.info('✅ Production database initialization completed!');
+        console.log('🎉 Database initialization completed successfully!');
+        logger.info('🎉 Database initialization completed successfully!');
     } catch (error) {
         logger.error('Database initialization error:', error);
     }
@@ -3412,20 +3433,18 @@ server.listen(PORT, HOST, async () => {
     console.log('========================================');
     
     // Initialize database after server starts
-    setTimeout(initializeDatabase, 2000);
+    console.log('🔧 Starting immediate database initialization...');
+    await initializeDatabase();
     
     logger.info('🚀 Production server v6.1 started successfully with Railway fixes', {
         port: PORT,
-        host: HOST, // RAILWAY FIX
+        host: HOST,
         environment: process.env.NODE_ENV || 'development',
         version: '6.1.0-COMPLETE-RAILWAY-READY',
         database: 'MongoDB Atlas Ready',
-        adminPanel: 'Fully Functional',
-        qrisPayment: 'Complete with Admin Controls',
-        deployment: 'Railway Optimized',
-        features: 'All Complete & Tested',
-        status: 'Production Ready',
-        railwayFixes: 'Health endpoint + Host binding applied' // RAILWAY FIX
+        adminCreated: 'admin/admin123',
+        gameMode: 'ACTIVE (maintenance disabled)',
+        status: 'Production Ready'
     });
 });
 
