@@ -1,6 +1,6 @@
 // ========================================
-// GOSOK ANGKA BACKEND - PRODUCTION v6.1 COMPLETE & DEPLOYMENT READY
-// MINIMAL RAILWAY FIX: Hanya tambah endpoint /health
+// GOSOK ANGKA BACKEND - PRODUCTION v6.1 COMPLETE & RAILWAY READY
+// FIXED: All admin endpoints, QRIS management, Railway deployment fixes
 // Backend URL: gosokangka-backend-production-e9fa.up.railway.app
 // DATABASE: Connected to yusrizal00 MongoDB Atlas (gosokangka-db)
 // ========================================
@@ -417,7 +417,6 @@ console.log('✅ CORS and Socket.IO configured for production');
 
 // ========================================
 // DATABASE SCHEMAS - Complete & Optimized
-// [ALL EXISTING DATABASE SCHEMAS - UNCHANGED]
 // ========================================
 
 const userSchema = new mongoose.Schema({
@@ -616,7 +615,6 @@ console.log('✅ All database schemas configured and ready');
 
 // ========================================
 // BACKGROUND JOBS - Production Ready
-// [ALL EXISTING BACKGROUND JOBS - UNCHANGED]
 // ========================================
 
 if (cron) {
@@ -671,7 +669,6 @@ if (cron) {
 
 // ========================================
 // VALIDATION MIDDLEWARE - Production Ready
-// [ALL EXISTING MIDDLEWARE - UNCHANGED]
 // ========================================
 const handleValidationErrors = (req, res, next) => {
     const errors = validationResult(req);
@@ -803,7 +800,6 @@ console.log('✅ Enhanced middleware configured');
 
 // ========================================
 // SOCKET.IO HANDLERS - Production Ready
-// [ALL EXISTING SOCKET HANDLERS - UNCHANGED]
 // ========================================
 
 io.use(async (socket, next) => {
@@ -848,31 +844,44 @@ io.on('connection', (socket) => {
 // ========================================
 // 🚨 RAILWAY FIX: TAMBAH ENDPOINT /health 🚨
 // ========================================
-// HANYA INI YANG DITAMBAH - SISANYA SAMA PERSIS
+// RAILWAY HEALTH CHECK ENDPOINT FOR DEPLOYMENT
 
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '6.1.0-railway-fix',
-        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+        version: '6.1.0-complete-railway-ready',
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        uptime: process.uptime(),
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+        },
+        services: {
+            api: 'operational',
+            socket: 'operational',
+            database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+            cron: cron ? 'operational' : 'disabled'
+        },
+        deployment: 'Railway Ready',
+        features: 'Complete Admin Panel + QRIS + All Systems'
     });
 });
 
 // ========================================
 // MAIN ROUTES - Complete & Production Ready
-// [ALL EXISTING ROUTES - UNCHANGED]
 // ========================================
 
 // Enhanced root endpoint with health check
 app.get('/', (req, res) => {
     res.json({
-        message: '🎯 Gosok Angka Backend API - Production v6.1 Complete',
-        version: '6.1.0 - Production Ready with All Features',
+        message: '🎯 Gosok Angka Backend API - Production v6.1 Complete + Railway Ready',
+        version: '6.1.0 - Complete Features + Railway Deployment Ready',
         status: 'All Systems Operational',
         health: 'OK',
         timestamp: new Date().toISOString(),
         database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        deployment: 'Railway Optimized',
         features: {
             completeAdminPanel: true,
             qrisPayment: true,
@@ -883,7 +892,7 @@ app.get('/', (req, res) => {
             bankManagement: true,
             userManagement: true,
             prizeManagement: true,
-            railwayHealthCheck: true // HANYA INI YANG DITAMBAH
+            railwayHealthCheck: true // RAILWAY FIX
         }
     });
 });
@@ -905,7 +914,7 @@ app.get('/api/health', async (req, res) => {
         const healthData = {
             status: dbStatus && dbTest ? 'healthy' : 'degraded',
             timestamp: new Date().toISOString(),
-            version: '6.1.0',
+            version: '6.1.0-complete-railway',
             uptime: process.uptime(),
             memory: process.memoryUsage(),
             database: {
@@ -916,7 +925,9 @@ app.get('/api/health', async (req, res) => {
                 api: 'operational',
                 socket: 'operational',
                 background: cron ? 'operational' : 'disabled'
-            }
+            },
+            deployment: 'Railway Ready',
+            railwayFix: 'Applied'
         };
         
         res.status(dbStatus && dbTest ? 200 : 503).json(healthData);
@@ -925,14 +936,14 @@ app.get('/api/health', async (req, res) => {
         res.status(503).json({
             status: 'error',
             timestamp: new Date().toISOString(),
-            error: error.message
+            error: error.message,
+            deployment: 'Railway Ready'
         });
     }
 });
 
 // ========================================
 // AUTH ROUTES - Enhanced & Secure
-// [ALL EXISTING AUTH ROUTES - SAMA PERSIS SEPERTI ASLINYA]
 // ========================================
 
 app.post('/api/auth/register', authRateLimit, validateUserRegistration, auditLog('user_register', 'user', 'medium'), async (req, res) => {
@@ -1117,10 +1128,6 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, auditLog('user_log
     }
 });
 
-// [SISANYA SAMA PERSIS SEPERTI KODE ASLINYA - SEMUA ADMIN ROUTES, USER ROUTES, GAME ROUTES, dll]
-// Untuk menghemat space, saya tidak copy paste semuanya lagi
-// TAPI SEMUANYA TETAP SAMA, TIDAK ADA YANG BERUBAH!
-
 // ========================================
 // ADMIN ROUTES - Complete Implementation
 // ========================================
@@ -1187,12 +1194,1815 @@ app.post('/api/admin/login', authRateLimit, validateAdminLogin, auditLog('admin_
     }
 });
 
-// [LANJUTKAN DENGAN SEMUA ENDPOINT LAINNYA YANG SAMA PERSIS]
-// Untuk brevity, saya skip copy paste semua endpoint karena sama persis
+// NEW: Admin Test Auth
+app.get('/api/admin/test-auth', verifyToken, verifyAdmin, (req, res) => {
+    res.json({ 
+        message: 'Authentication valid', 
+        adminId: req.userId,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// NEW: Change Password
+app.post('/api/admin/change-password', verifyToken, verifyAdmin, auditLog('change_password', 'admin', 'high'), async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ error: 'Old and new passwords are required' });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters' });
+        }
+        
+        const admin = await Admin.findById(req.userId);
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin not found' });
+        }
+        
+        const isValidPassword = await bcrypt.compare(oldPassword, admin.password);
+        if (!isValidPassword) {
+            return res.status(400).json({ error: 'Current password is incorrect' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        admin.password = hashedPassword;
+        admin.passwordChangedAt = new Date();
+        admin.mustChangePassword = false;
+        await admin.save();
+        
+        logger.info('Admin password changed:', admin.username);
+        
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        logger.error('Change password error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_dashboard', 'admin'), async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const [
+            totalUsers, 
+            todayScratches, 
+            todayWinners, 
+            totalPrizesResult, 
+            pendingPurchases,
+            qrisTransactions,
+            activeUsers
+        ] = await Promise.all([
+            User.countDocuments(),
+            Scratch.countDocuments({ scratchDate: { $gte: today } }),
+            Winner.countDocuments({ scratchDate: { $gte: today } }),
+            Winner.aggregate([
+                { $match: { claimStatus: 'completed' } },
+                { $lookup: {
+                    from: 'prizes',
+                    localField: 'prizeId',
+                    foreignField: '_id',
+                    as: 'prize'
+                }},
+                { $unwind: '$prize' },
+                { $group: {
+                    _id: null,
+                    total: { $sum: '$prize.value' }
+                }}
+            ]),
+            TokenPurchase.countDocuments({ paymentStatus: 'pending' }),
+            QRISTransaction.countDocuments({ status: 'pending' }),
+            User.countDocuments({ 
+                lastActiveDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+            })
+        ]);
+        
+        const dashboardData = {
+            totalUsers,
+            todayScratches,
+            todayWinners,
+            totalPrizes: totalPrizesResult[0]?.total || 0,
+            pendingPurchases,
+            pendingQRIS: qrisTransactions,
+            activeUsers,
+            systemHealth: {
+                memoryUsage: process.memoryUsage(),
+                uptime: process.uptime(),
+                socketConnections: io.engine.clientsCount || 0
+            },
+            analytics: {
+                winRate: todayScratches > 0 ? ((todayWinners / todayScratches) * 100).toFixed(2) : 0,
+                averageWinValue: totalPrizesResult[0]?.total && todayWinners > 0 ? 
+                    (totalPrizesResult[0].total / todayWinners).toFixed(0) : 0
+            }
+        };
+        
+        res.json(dashboardData);
+    } catch (error) {
+        logger.error('Dashboard error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.get('/api/admin/users', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_users', 'user'), async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '', status = 'all', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+        
+        let query = {};
+        if (search) {
+            query = {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } },
+                    { phoneNumber: { $regex: search, $options: 'i' } }
+                ]
+            };
+        }
+        
+        if (status !== 'all') {
+            query.status = status;
+        }
+        
+        const sortObject = {};
+        sortObject[sortBy] = sortOrder === 'desc' ? -1 : 1;
+        
+        const users = await User.find(query)
+            .select('-password')
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort(sortObject);
+            
+        const total = await User.countDocuments(query);
+        
+        const userStats = await User.aggregate([
+            { $match: query },
+            {
+                $group: {
+                    _id: null,
+                    totalSpent: { $sum: '$totalSpent' },
+                    totalWon: { $sum: '$totalWon' },
+                    totalScratches: { $sum: '$scratchCount' },
+                    totalWins: { $sum: '$winCount' }
+                }
+            }
+        ]);
+        
+        res.json({
+            users,
+            total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: parseInt(page),
+            page: parseInt(page),
+            limit: parseInt(limit),
+            stats: userStats[0] || {
+                totalSpent: 0,
+                totalWon: 0,
+                totalScratches: 0,
+                totalWins: 0
+            }
+        });
+    } catch (error) {
+        logger.error('Get users error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: User Detail with Scratch History
+app.get('/api/admin/users/:userId', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_user_detail', 'user'), async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const user = await User.findById(userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const scratches = await Scratch.find({ userId })
+            .populate('prizeId', 'name value type')
+            .sort({ scratchDate: -1 })
+            .limit(50);
+        
+        const stats = {
+            totalScratches: user.scratchCount || 0,
+            totalWins: user.winCount || 0,
+            winRate: user.scratchCount > 0 ? ((user.winCount / user.scratchCount) * 100).toFixed(2) : 0
+        };
+        
+        res.json({
+            user,
+            scratches,
+            stats
+        });
+    } catch (error) {
+        logger.error('Get user detail error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Reset User Password
+app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, adminRateLimit, auditLog('reset_user_password', 'user', 'high'), async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { newPassword } = req.body;
+        
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        user.password = hashedPassword;
+        user.loginAttempts = 0;
+        user.lockedUntil = undefined;
+        await user.save();
+        
+        logger.info('User password reset by admin:', user.email);
+        
+        res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+        logger.error('Reset password error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Update User Win Rate
+app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_user_win_rate', 'user', 'medium'), async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { winRate } = req.body;
+        
+        if (winRate !== null && (isNaN(winRate) || winRate < 0 || winRate > 100)) {
+            return res.status(400).json({ error: 'Win rate must be between 0-100 or null' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        user.customWinRate = winRate;
+        await user.save();
+        
+        logger.info('User win rate updated:', user.email, 'New rate:', winRate);
+        
+        res.json({ message: 'Win rate updated successfully', winRate });
+    } catch (error) {
+        logger.error('Update win rate error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Set Forced Winning Number
+app.put('/api/admin/users/:userId/forced-winning', verifyToken, verifyAdmin, adminRateLimit, auditLog('set_forced_winning', 'user', 'high'), async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { winningNumber } = req.body;
+        
+        if (winningNumber !== null && (!/^\d{4}$/.test(winningNumber))) {
+            return res.status(400).json({ error: 'Winning number must be 4 digits or null' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        user.forcedWinningNumber = winningNumber;
+        await user.save();
+        
+        logger.info('Forced winning number set:', user.email, 'Number:', winningNumber);
+        
+        res.json({ message: 'Forced winning number updated successfully', winningNumber });
+    } catch (error) {
+        logger.error('Set forced winning error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Prize Management Routes
+app.get('/api/admin/prizes', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_prizes', 'prize'), async (req, res) => {
+    try {
+        const prizes = await Prize.find()
+            .sort({ priority: -1, createdAt: -1 });
+        
+        res.json(prizes);
+    } catch (error) {
+        logger.error('Get prizes error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.post('/api/admin/prizes', verifyToken, verifyAdmin, adminRateLimit, auditLog('add_prize', 'prize', 'medium'), async (req, res) => {
+    try {
+        const { winningNumber, name, type, value, stock, description, category, priority } = req.body;
+        
+        if (!winningNumber || !/^\d{4}$/.test(winningNumber)) {
+            return res.status(400).json({ error: 'Winning number must be 4 digits' });
+        }
+        
+        if (!name || !type || !value || stock === undefined) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const existingPrize = await Prize.findOne({ winningNumber });
+        if (existingPrize) {
+            return res.status(400).json({ error: 'Winning number already exists' });
+        }
+        
+        const prize = new Prize({
+            winningNumber,
+            name,
+            type,
+            value: parseInt(value),
+            stock: parseInt(stock),
+            originalStock: parseInt(stock),
+            description,
+            category: category || 'general',
+            priority: priority || 0,
+            isActive: true
+        });
+        
+        await prize.save();
+        
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_added',
+            prizeData: prize,
+            message: 'New prize added'
+        });
+        
+        logger.info('Prize added successfully:', prize.name);
+        
+        res.status(201).json(prize);
+    } catch (error) {
+        logger.error('Add prize error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_prize', 'prize', 'medium'), async (req, res) => {
+    try {
+        const { prizeId } = req.params;
+        const { winningNumber, name, type, value, stock, description, category, priority, isActive } = req.body;
+        
+        const prize = await Prize.findById(prizeId);
+        if (!prize) {
+            return res.status(404).json({ error: 'Prize not found' });
+        }
+        
+        if (winningNumber && winningNumber !== prize.winningNumber) {
+            if (!/^\d{4}$/.test(winningNumber)) {
+                return res.status(400).json({ error: 'Winning number must be 4 digits' });
+            }
+            
+            const existingPrize = await Prize.findOne({ winningNumber });
+            if (existingPrize) {
+                return res.status(400).json({ error: 'Winning number already exists' });
+            }
+        }
+        
+        Object.assign(prize, {
+            winningNumber: winningNumber || prize.winningNumber,
+            name: name || prize.name,
+            type: type || prize.type,
+            value: value !== undefined ? parseInt(value) : prize.value,
+            stock: stock !== undefined ? parseInt(stock) : prize.stock,
+            description: description !== undefined ? description : prize.description,
+            category: category || prize.category,
+            priority: priority !== undefined ? priority : prize.priority,
+            isActive: isActive !== undefined ? isActive : prize.isActive
+        });
+        
+        await prize.save();
+        
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_updated',
+            prizeData: prize,
+            message: 'Prize updated'
+        });
+        
+        logger.info('Prize updated successfully:', prize.name);
+        
+        res.json(prize);
+    } catch (error) {
+        logger.error('Update prize error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimit, auditLog('delete_prize', 'prize', 'high'), async (req, res) => {
+    try {
+        const { prizeId } = req.params;
+        
+        const prize = await Prize.findById(prizeId);
+        if (!prize) {
+            return res.status(404).json({ error: 'Prize not found' });
+        }
+        
+        await Prize.findByIdAndDelete(prizeId);
+        
+        socketManager.broadcastPrizeUpdate({
+            type: 'prize_deleted',
+            prizeId: prizeId,
+            message: 'Prize deleted'
+        });
+        
+        logger.info('Prize deleted successfully:', prize.name);
+        
+        res.json({ message: 'Prize deleted successfully' });
+    } catch (error) {
+        logger.error('Delete prize error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Game Settings Management
+app.get('/api/admin/game-settings', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_game_settings', 'settings'), async (req, res) => {
+    try {
+        let settings = await GameSettings.findOne();
+        
+        if (!settings) {
+            settings = new GameSettings({
+                winningNumber: '1234',
+                winProbability: 5,
+                maxFreeScratchesPerDay: 1,
+                minFreeScratchesPerDay: 1,
+                scratchTokenPrice: 25000,
+                isGameActive: true,
+                resetTime: '00:00'
+            });
+            await settings.save();
+        }
+        
+        res.json(settings);
+    } catch (error) {
+        logger.error('Get game settings error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/game-settings', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_game_settings', 'settings', 'high'), async (req, res) => {
+    try {
+        const updateData = { ...req.body, lastUpdated: new Date() };
+        
+        const settings = await GameSettings.findOneAndUpdate(
+            {},
+            updateData,
+            { new: true, upsert: true }
+        );
+        
+        socketManager.broadcastSettingsUpdate({
+            settings: settings
+        });
+        
+        logger.info('Game settings updated successfully');
+        
+        res.json(settings);
+    } catch (error) {
+        logger.error('Update game settings error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Winners Management
+app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_winners', 'winner'), async (req, res) => {
+    try {
+        const { limit = 50 } = req.query;
+        
+        const winners = await Winner.find()
+            .populate('userId', 'name email phoneNumber')
+            .populate('prizeId', 'name value type')
+            .sort({ scratchDate: -1 })
+            .limit(parseInt(limit));
+        
+        res.json(winners);
+    } catch (error) {
+        logger.error('Get recent winners error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/winners/:winnerId/claim-status', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_claim_status', 'winner', 'medium'), async (req, res) => {
+    try {
+        const { winnerId } = req.params;
+        const { claimStatus } = req.body;
+        
+        if (!['pending', 'completed', 'expired', 'processing'].includes(claimStatus)) {
+            return res.status(400).json({ error: 'Invalid claim status' });
+        }
+        
+        const winner = await Winner.findById(winnerId);
+        if (!winner) {
+            return res.status(404).json({ error: 'Winner not found' });
+        }
+        
+        winner.claimStatus = claimStatus;
+        if (claimStatus === 'completed') {
+            winner.claimDate = new Date();
+        }
+        await winner.save();
+        
+        logger.info('Winner claim status updated:', winnerId, 'Status:', claimStatus);
+        
+        res.json({ message: 'Claim status updated successfully', claimStatus });
+    } catch (error) {
+        logger.error('Update claim status error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Token Purchase Management
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_token_purchases', 'token'), async (req, res) => {
+    try {
+        const { page = 1, limit = 20, status = 'all', dateFrom, dateTo } = req.query;
+        
+        let query = {};
+        if (status !== 'all') {
+            query.paymentStatus = status;
+        }
+        
+        if (dateFrom || dateTo) {
+            query.purchaseDate = {};
+            if (dateFrom) query.purchaseDate.$gte = new Date(dateFrom);
+            if (dateTo) query.purchaseDate.$lte = new Date(dateTo);
+        }
+        
+        const purchases = await TokenPurchase.find(query)
+            .populate('userId', 'name email phoneNumber')
+            .populate('adminId', 'name username')
+            .sort({ purchaseDate: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            
+        const total = await TokenPurchase.countDocuments(query);
+        
+        const stats = await TokenPurchase.aggregate([
+            { $match: query },
+            {
+                $group: {
+                    _id: '$paymentStatus',
+                    count: { $sum: 1 },
+                    totalAmount: { $sum: '$totalAmount' }
+                }
+            }
+        ]);
+        
+        res.json({
+            purchases,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit),
+            stats
+        });
+    } catch (error) {
+        logger.error('Get token purchases error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.post('/api/admin/token-purchase', verifyToken, verifyAdmin, adminRateLimit, auditLog('create_token_purchase', 'token', 'medium'), async (req, res) => {
+    try {
+        const { userId, quantity, paymentMethod, notes } = req.body;
+        
+        if (!userId || !quantity || quantity < 1) {
+            return res.status(400).json({ error: 'User ID and valid quantity are required' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const gameSettings = await GameSettings.findOne();
+        const pricePerToken = gameSettings?.scratchTokenPrice || 25000;
+        const totalAmount = pricePerToken * quantity;
+        
+        const tokenPurchase = new TokenPurchase({
+            userId,
+            adminId: req.userId,
+            quantity,
+            pricePerToken,
+            totalAmount,
+            paymentStatus: 'completed',
+            paymentMethod: paymentMethod || 'cash',
+            notes: notes || 'Created by admin',
+            completedDate: new Date()
+        });
+        
+        await tokenPurchase.save();
+        
+        // Add tokens to user
+        user.paidScratchesRemaining = (user.paidScratchesRemaining || 0) + quantity;
+        user.totalPurchasedScratches = (user.totalPurchasedScratches || 0) + quantity;
+        user.totalSpent = (user.totalSpent || 0) + totalAmount;
+        await user.save();
+        
+        socketManager.broadcastTokenPurchase({
+            userId: user._id,
+            quantity: quantity,
+            newBalance: {
+                free: user.freeScratchesRemaining || 0,
+                paid: user.paidScratchesRemaining,
+                total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
+            }
+        });
+        
+        logger.info('Token purchase created by admin:', quantity, 'tokens for user:', user.name);
+        
+        res.status(201).json({
+            message: 'Token purchase created successfully',
+            purchase: tokenPurchase,
+            tokensAdded: quantity
+        });
+    } catch (error) {
+        logger.error('Create token purchase error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/token-purchase/:purchaseId/complete', verifyToken, verifyAdmin, adminRateLimit, auditLog('complete_token_purchase', 'token', 'high'), async (req, res) => {
+    try {
+        const { purchaseId } = req.params;
+        
+        const purchase = await TokenPurchase.findById(purchaseId).populate('userId');
+        if (!purchase) {
+            return res.status(404).json({ error: 'Token purchase not found' });
+        }
+        
+        if (purchase.paymentStatus === 'completed') {
+            return res.status(400).json({ error: 'Purchase already completed' });
+        }
+        
+        const user = await User.findById(purchase.userId._id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        purchase.paymentStatus = 'completed';
+        purchase.completedDate = new Date();
+        purchase.adminId = req.userId;
+        await purchase.save();
+        
+        // Add tokens to user
+        user.paidScratchesRemaining = (user.paidScratchesRemaining || 0) + purchase.quantity;
+        user.totalPurchasedScratches = (user.totalPurchasedScratches || 0) + purchase.quantity;
+        user.totalSpent = (user.totalSpent || 0) + purchase.totalAmount;
+        await user.save();
+        
+        socketManager.broadcastTokenPurchase({
+            userId: user._id,
+            quantity: purchase.quantity,
+            newBalance: {
+                free: user.freeScratchesRemaining || 0,
+                paid: user.paidScratchesRemaining,
+                total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
+            }
+        });
+        
+        logger.info('Token purchase completed:', purchase.quantity, 'tokens for user:', user.name);
+        
+        res.json({
+            message: 'Token purchase completed successfully',
+            tokensAdded: purchase.quantity
+        });
+    } catch (error) {
+        logger.error('Complete token purchase error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/token-purchase/:purchaseId/cancel', verifyToken, verifyAdmin, adminRateLimit, auditLog('cancel_token_purchase', 'token', 'medium'), async (req, res) => {
+    try {
+        const { purchaseId } = req.params;
+        const { reason } = req.body;
+        
+        const purchase = await TokenPurchase.findById(purchaseId);
+        if (!purchase) {
+            return res.status(404).json({ error: 'Token purchase not found' });
+        }
+        
+        if (purchase.paymentStatus === 'completed') {
+            return res.status(400).json({ error: 'Cannot cancel completed purchase' });
+        }
+        
+        purchase.paymentStatus = 'cancelled';
+        purchase.refundReason = reason || 'Cancelled by admin';
+        purchase.refundDate = new Date();
+        await purchase.save();
+        
+        logger.info('Token purchase cancelled:', purchaseId);
+        
+        res.json({ message: 'Token purchase cancelled successfully' });
+    } catch (error) {
+        logger.error('Cancel token purchase error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Scratch History
+app.get('/api/admin/scratch-history', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_scratch_history', 'scratch'), async (req, res) => {
+    try {
+        const { page = 1, limit = 50, dateFrom, dateTo, winOnly } = req.query;
+        
+        let query = {};
+        
+        if (dateFrom || dateTo) {
+            query.scratchDate = {};
+            if (dateFrom) query.scratchDate.$gte = new Date(dateFrom);
+            if (dateTo) query.scratchDate.$lte = new Date(dateTo);
+        }
+        
+        if (winOnly === 'true') {
+            query.isWin = true;
+        }
+        
+        const scratches = await Scratch.find(query)
+            .populate('userId', 'name email phoneNumber')
+            .populate('prizeId', 'name value type')
+            .sort({ scratchDate: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            
+        const total = await Scratch.countDocuments(query);
+        
+        res.json({
+            scratches,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        logger.error('Get scratch history error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Analytics
+app.get('/api/admin/analytics', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_analytics', 'analytics'), async (req, res) => {
+    try {
+        const { period = '7days' } = req.query;
+        
+        let dateFilter = {};
+        const now = new Date();
+        
+        switch (period) {
+            case 'today':
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                dateFilter = { $gte: today };
+                break;
+            case '7days':
+                dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+                break;
+            case '30days':
+                dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+                break;
+            default:
+                dateFilter = {}; // All time
+        }
+        
+        const [
+            totalScratches,
+            totalWins,
+            totalTokensSold,
+            totalTokenRevenue,
+            totalPrizeValue
+        ] = await Promise.all([
+            Scratch.countDocuments(dateFilter.scratchDate ? { scratchDate: dateFilter } : {}),
+            Scratch.countDocuments(dateFilter.scratchDate ? { scratchDate: dateFilter, isWin: true } : { isWin: true }),
+            TokenPurchase.aggregate([
+                { $match: Object.keys(dateFilter).length ? { purchaseDate: dateFilter, paymentStatus: 'completed' } : { paymentStatus: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$quantity' } } }
+            ]),
+            TokenPurchase.aggregate([
+                { $match: Object.keys(dateFilter).length ? { purchaseDate: dateFilter, paymentStatus: 'completed' } : { paymentStatus: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+            ]),
+            Winner.aggregate([
+                { $match: Object.keys(dateFilter).length ? { scratchDate: dateFilter, claimStatus: 'completed' } : { claimStatus: 'completed' } },
+                { $lookup: { from: 'prizes', localField: 'prizeId', foreignField: '_id', as: 'prize' } },
+                { $unwind: '$prize' },
+                { $group: { _id: null, total: { $sum: '$prize.value' } } }
+            ])
+        ]);
+        
+        const analytics = {
+            totalScratches: totalScratches || 0,
+            totalWins: totalWins || 0,
+            winRate: totalScratches > 0 ? ((totalWins / totalScratches) * 100).toFixed(2) : 0,
+            totalTokensSold: totalTokensSold[0]?.total || 0,
+            totalTokenRevenue: totalTokenRevenue[0]?.total || 0,
+            totalPrizeValue: totalPrizeValue[0]?.total || 0
+        };
+        
+        res.json(analytics);
+    } catch (error) {
+        logger.error('Get analytics error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: System Status
+app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_system_status', 'system'), async (req, res) => {
+    try {
+        const memoryUsage = process.memoryUsage();
+        
+        const systemStatus = {
+            version: '6.1.0-complete-railway',
+            environment: process.env.NODE_ENV || 'development',
+            deployment: 'Railway Ready',
+            uptime: {
+                seconds: process.uptime(),
+                formatted: new Date(process.uptime() * 1000).toISOString().substr(11, 8)
+            },
+            memory: {
+                rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
+                heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
+                heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`,
+                external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`
+            },
+            database: {
+                readyState: mongoose.connection.readyState,
+                host: mongoose.connection.host,
+                name: mongoose.connection.name
+            },
+            socketConnections: io.engine.clientsCount || 0,
+            recentErrors: 0, // Could be implemented with error tracking
+            railwayFix: 'Applied - Health endpoint available',
+            fixApplied: 'v6.1 - Complete admin panel + Railway deployment ready',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.json(systemStatus);
+    } catch (error) {
+        logger.error('Get system status error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// NEW: Bank Account Management
+app.get('/api/admin/bank-accounts', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_bank_accounts', 'bank'), async (req, res) => {
+    try {
+        const accounts = await BankAccount.find().sort({ createdAt: -1 });
+        res.json(accounts);
+    } catch (error) {
+        logger.error('Get bank accounts error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.post('/api/admin/bank-account', verifyToken, verifyAdmin, adminRateLimit, auditLog('set_bank_account', 'bank', 'medium'), async (req, res) => {
+    try {
+        const { bankName, accountNumber, accountHolder, bankCode, branch } = req.body;
+        
+        if (!bankName || !accountNumber || !accountHolder) {
+            return res.status(400).json({ error: 'Bank name, account number, and account holder are required' });
+        }
+        
+        if (!/^\d{8,20}$/.test(accountNumber)) {
+            return res.status(400).json({ error: 'Account number must be 8-20 digits' });
+        }
+        
+        // Deactivate all existing accounts
+        await BankAccount.updateMany({}, { isActive: false });
+        
+        const bankAccount = new BankAccount({
+            bankName,
+            accountNumber,
+            accountHolder,
+            bankCode,
+            branch,
+            isActive: true
+        });
+        
+        await bankAccount.save();
+        
+        logger.info('Bank account created:', bankName, accountNumber);
+        
+        res.status(201).json(bankAccount);
+    } catch (error) {
+        logger.error('Set bank account error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_bank_account', 'bank', 'medium'), async (req, res) => {
+    try {
+        const { accountId } = req.params;
+        const { bankName, accountNumber, accountHolder, bankCode, branch, isActive } = req.body;
+        
+        const account = await BankAccount.findById(accountId);
+        if (!account) {
+            return res.status(404).json({ error: 'Bank account not found' });
+        }
+        
+        if (accountNumber && !/^\d{8,20}$/.test(accountNumber)) {
+            return res.status(400).json({ error: 'Account number must be 8-20 digits' });
+        }
+        
+        Object.assign(account, {
+            bankName: bankName || account.bankName,
+            accountNumber: accountNumber || account.accountNumber,
+            accountHolder: accountHolder || account.accountHolder,
+            bankCode: bankCode !== undefined ? bankCode : account.bankCode,
+            branch: branch !== undefined ? branch : account.branch,
+            isActive: isActive !== undefined ? isActive : account.isActive
+        });
+        
+        await account.save();
+        
+        logger.info('Bank account updated:', account.bankName, account.accountNumber);
+        
+        res.json(account);
+    } catch (error) {
+        logger.error('Update bank account error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.delete('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, adminRateLimit, auditLog('delete_bank_account', 'bank', 'high'), async (req, res) => {
+    try {
+        const { accountId } = req.params;
+        
+        const account = await BankAccount.findById(accountId);
+        if (!account) {
+            return res.status(404).json({ error: 'Bank account not found' });
+        }
+        
+        await BankAccount.findByIdAndDelete(accountId);
+        
+        logger.info('Bank account deleted:', account.bankName, account.accountNumber);
+        
+        res.json({ message: 'Bank account deleted successfully' });
+    } catch (error) {
+        logger.error('Delete bank account error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// QRIS Management - Enhanced (Already exists but enhanced)
+app.get('/api/admin/qris-settings', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_qris_settings', 'qris'), async (req, res) => {
+    try {
+        let qrisSettings = await QRISSettings.findOne();
+        
+        if (!qrisSettings) {
+            qrisSettings = new QRISSettings({
+                isActive: false,
+                merchantName: 'Gosok Angka Hoki',
+                autoConfirm: true,
+                minAmount: 25000,
+                maxAmount: 10000000
+            });
+            await qrisSettings.save();
+        }
+        
+        res.json(qrisSettings);
+    } catch (error) {
+        logger.error('Get QRIS settings error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/qris-settings', verifyToken, verifyAdmin, adminRateLimit, auditLog('update_qris_settings', 'qris', 'high'), async (req, res) => {
+    try {
+        const { 
+            isActive, 
+            qrCodeImage, 
+            merchantName, 
+            merchantId, 
+            autoConfirm, 
+            minAmount,
+            maxAmount,
+            feePercentage,
+            dailyLimit,
+            notes 
+        } = req.body;
+        
+        const qrisSettings = await QRISSettings.findOneAndUpdate(
+            {},
+            { 
+                isActive: isActive !== undefined ? isActive : false,
+                qrCodeImage,
+                merchantName: merchantName || 'Gosok Angka Hoki',
+                merchantId,
+                autoConfirm: autoConfirm !== undefined ? autoConfirm : true,
+                minAmount: minAmount || 25000,
+                maxAmount: maxAmount || 10000000,
+                feePercentage: feePercentage || 0,
+                dailyLimit: dailyLimit || 50000000,
+                notes,
+                updatedAt: new Date()
+            },
+            { new: true, upsert: true }
+        );
+        
+        logger.info('QRIS settings updated successfully');
+        
+        io.emit('qris:settings-updated', {
+            settings: {
+                isActive: qrisSettings.isActive,
+                merchantName: qrisSettings.merchantName,
+                autoConfirm: qrisSettings.autoConfirm,
+                minAmount: qrisSettings.minAmount,
+                maxAmount: qrisSettings.maxAmount
+            }
+        });
+        
+        res.json(qrisSettings);
+    } catch (error) {
+        logger.error('Update QRIS settings error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.get('/api/admin/qris-transactions', verifyToken, verifyAdmin, adminRateLimit, auditLog('view_qris_transactions', 'qris'), async (req, res) => {
+    try {
+        const { page = 1, limit = 20, status = 'all', dateFrom, dateTo } = req.query;
+        
+        let query = {};
+        if (status !== 'all') {
+            query.status = status;
+        }
+        
+        if (dateFrom || dateTo) {
+            query.createdAt = {};
+            if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+            if (dateTo) query.createdAt.$lte = new Date(dateTo);
+        }
+        
+        const transactions = await QRISTransaction.find(query)
+            .populate('userId', 'name email phoneNumber')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            
+        const total = await QRISTransaction.countDocuments(query);
+        
+        const stats = await QRISTransaction.aggregate([
+            { $match: query },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 },
+                    totalAmount: { $sum: '$amount' }
+                }
+            }
+        ]);
+        
+        res.json({
+            transactions,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit),
+            stats
+        });
+    } catch (error) {
+        logger.error('Get QRIS transactions error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+app.put('/api/admin/qris-transactions/:transactionId/confirm', verifyToken, verifyAdmin, adminRateLimit, auditLog('confirm_qris_payment', 'qris', 'high'), async (req, res) => {
+    try {
+        const { transactionId } = req.params;
+        
+        const transaction = await QRISTransaction.findById(transactionId)
+            .populate('userId', 'name email phoneNumber freeScratchesRemaining paidScratchesRemaining');
+            
+        if (!transaction) {
+            return res.status(404).json({ error: 'QRIS transaction not found' });
+        }
+        
+        if (transaction.status === 'confirmed') {
+            return res.status(400).json({ error: 'Transaction already confirmed' });
+        }
+        
+        if (transaction.status === 'expired') {
+            return res.status(400).json({ error: 'Transaction has expired' });
+        }
+        
+        const user = await User.findById(transaction.userId._id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Add tokens to user
+        user.paidScratchesRemaining = (user.paidScratchesRemaining || 0) + transaction.tokenQuantity;
+        user.totalPurchasedScratches = (user.totalPurchasedScratches || 0) + transaction.tokenQuantity;
+        user.totalSpent = (user.totalSpent || 0) + transaction.amount;
+        user.lastActiveDate = new Date();
+        await user.save();
+        
+        // Update transaction status
+        transaction.status = 'confirmed';
+        transaction.confirmationDate = new Date();
+        await transaction.save();
+        
+        // Create corresponding TokenPurchase record
+        const tokenPurchase = new TokenPurchase({
+            userId: user._id,
+            quantity: transaction.tokenQuantity,
+            pricePerToken: Math.round(transaction.amount / transaction.tokenQuantity),
+            totalAmount: transaction.amount,
+            paymentStatus: 'completed',
+            paymentMethod: 'qris',
+            transactionId: transaction.transactionId,
+            qrisAmount: transaction.amount,
+            autoCompleted: false,
+            completedDate: new Date(),
+            notes: `Manual QRIS confirmation by admin - Transaction ID: ${transaction.transactionId}`
+        });
+        
+        await tokenPurchase.save();
+        
+        socketManager.broadcastQRISPayment({
+            userId: user._id,
+            quantity: transaction.tokenQuantity,
+            newBalance: {
+                free: user.freeScratchesRemaining || 0,
+                paid: user.paidScratchesRemaining,
+                total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
+            }
+        });
+        
+        logger.info(`QRIS payment confirmed: ${transaction.tokenQuantity} tokens for user ${user.name}`);
+        
+        res.json({
+            message: 'QRIS payment confirmed successfully',
+            transaction: await transaction.populate('userId', 'name email phoneNumber'),
+            tokensAdded: transaction.tokenQuantity
+        });
+    } catch (error) {
+        logger.error('Confirm QRIS payment error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// File Upload
+app.post('/api/admin/upload', verifyToken, verifyAdmin, uploadRateLimit, upload.single('file'), auditLog('file_upload', 'file', 'medium'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const { fileType = 'qr-code' } = req.body;
+        
+        const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        
+        if (req.file.size > 5 * 1024 * 1024) {
+            return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
+        }
+        
+        logger.info(`File uploaded: ${fileType}, Size: ${req.file.size} bytes, Admin: ${req.userId}`);
+        
+        res.json({
+            message: 'File uploaded successfully',
+            fileType,
+            imageData: base64Image,
+            size: req.file.size,
+            mimeType: req.file.mimetype
+        });
+    } catch (error) {
+        logger.error('File upload error:', error);
+        res.status(500).json({ error: 'Upload failed: ' + error.message });
+    }
+});
+
+// ========================================
+// USER ROUTES - Enhanced & Complete
+// ========================================
+
+app.get('/api/user/profile', verifyToken, auditLog('get_profile', 'user'), async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const profile = {
+            ...user.toObject(),
+            freeScratchesRemaining: user.freeScratchesRemaining || 0,
+            paidScratchesRemaining: user.paidScratchesRemaining || 0,
+            scratchCount: user.scratchCount || 0,
+            winCount: user.winCount || 0,
+            totalPurchasedScratches: user.totalPurchasedScratches || 0,
+            totalSpent: user.totalSpent || 0,
+            totalWon: user.totalWon || 0,
+            lastActiveDate: user.lastActiveDate || user.createdAt
+        };
+        
+        res.json(profile);
+    } catch (error) {
+        logger.error('Profile error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/user/token-request', verifyToken, createRateLimit(60 * 60 * 1000, 10, 'Too many token requests'), auditLog('token_request', 'token_purchase', 'medium'), async (req, res) => {
+    try {
+        const { quantity, paymentMethod } = req.body;
+        
+        if (!quantity || quantity < 1 || quantity > 100) {
+            return res.status(400).json({ error: 'Token quantity must be 1-100' });
+        }
+        
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const settings = await GameSettings.findOne();
+        const pricePerToken = settings?.scratchTokenPrice || 25000;
+        const totalAmount = pricePerToken * quantity;
+        
+        const request = new TokenPurchase({
+            userId: req.userId,
+            adminId: null,
+            quantity,
+            pricePerToken,
+            totalAmount,
+            paymentStatus: 'pending',
+            paymentMethod: paymentMethod || 'bank',
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent'),
+            notes: `Token purchase request by user: ${user.name} (${user.email})`
+        });
+        
+        await request.save();
+        
+        const requestData = {
+            requestId: request._id,
+            userId: req.userId,
+            userName: user.name,
+            userEmail: user.email,
+            userPhone: user.phoneNumber,
+            quantity,
+            totalAmount,
+            pricePerToken,
+            paymentMethod,
+            timestamp: request.purchaseDate
+        };
+        
+        socketManager.broadcastTokenRequest(requestData);
+        
+        logger.info(`Token request created: ID=${request._id}, User=${user.name}, Quantity=${quantity}`);
+        
+        res.json({
+            message: 'Token purchase request recorded successfully. Admin will process it soon.',
+            requestId: request._id,
+            totalAmount,
+            quantity,
+            pricePerToken,
+            paymentMethod
+        });
+    } catch (error) {
+        logger.error('Token request error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/user/history', verifyToken, auditLog('get_game_history', 'game'), async (req, res) => {
+    try {
+        const scratches = await Scratch.find({ userId: req.userId })
+            .populate('prizeId')
+            .sort({ scratchDate: -1 })
+            .limit(50);
+            
+        res.json({ scratches });
+    } catch (error) {
+        logger.error('History error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========================================
+// GAME ROUTES - Enhanced & Stable
+// ========================================
+
+app.post('/api/game/prepare-scratch', verifyToken, scratchRateLimit, auditLog('prepare_scratch', 'game', 'medium'), async (req, res) => {
+    try {
+        const settings = await GameSettings.findOne();
+        if (!settings || !settings.isGameActive || settings.maintenanceMode) {
+            return res.status(400).json({ 
+                error: settings?.maintenanceMode ? settings.maintenanceMessage : 'Game is currently inactive' 
+            });
+        }
+        
+        const user = await User.findById(req.userId);
+        
+        const totalScratches = (user.freeScratchesRemaining || 0) + (user.paidScratchesRemaining || 0);
+        
+        if (totalScratches <= 0) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (!user.lastScratchDate || user.lastScratchDate < today) {
+                user.freeScratchesRemaining = settings.maxFreeScratchesPerDay || 1;
+                await user.save();
+                logger.info(`Reset free scratches for ${user.name} to ${user.freeScratchesRemaining}`);
+            } else {
+                return res.status(400).json({ 
+                    error: 'No chances remaining! Buy token scratches or wait until tomorrow.',
+                    needTokens: true 
+                });
+            }
+        }
+        
+        let scratchNumber;
+        if (user.forcedWinningNumber) {
+            scratchNumber = user.forcedWinningNumber;
+            logger.info(`Using forced winning number for ${user.name}: ${scratchNumber}`);
+            user.forcedWinningNumber = null;
+        } else {
+            scratchNumber = Math.floor(1000 + Math.random() * 9000).toString();
+        }
+        
+        user.preparedScratchNumber = scratchNumber;
+        user.preparedScratchDate = new Date();
+        user.lastActiveDate = new Date();
+        await user.save();
+        
+        logger.info(`Prepared scratch number ${scratchNumber} for user ${user.name}`);
+        
+        res.json({
+            message: 'Scratch prepared successfully',
+            scratchNumber: scratchNumber,
+            preparedAt: user.preparedScratchDate
+        });
+    } catch (error) {
+        logger.error('Prepare scratch error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/game/scratch', verifyToken, scratchRateLimit, auditLog('execute_scratch', 'game', 'high'), async (req, res) => {
+    try {
+        const { scratchNumber } = req.body;
+        
+        if (!scratchNumber || !/^\d{4}$/.test(scratchNumber)) {
+            return res.status(400).json({ error: 'Invalid scratch number format' });
+        }
+        
+        const settings = await GameSettings.findOne();
+        if (!settings || !settings.isGameActive || settings.maintenanceMode) {
+            return res.status(400).json({ 
+                error: settings?.maintenanceMode ? settings.maintenanceMessage : 'Game is currently inactive' 
+            });
+        }
+        
+        const user = await User.findById(req.userId);
+        
+        if (!user.preparedScratchNumber || user.preparedScratchNumber !== scratchNumber) {
+            logger.error(`SYNC ERROR for ${user.name}. Expected: ${user.preparedScratchNumber}, Got: ${scratchNumber}`);
+            return res.status(400).json({ 
+                error: 'Invalid scratch number. Please prepare a new scratch.',
+                requireNewPreparation: true
+            });
+        }
+        
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        if (user.preparedScratchDate < fiveMinutesAgo) {
+            user.preparedScratchNumber = null;
+            user.preparedScratchDate = null;
+            await user.save();
+            
+            return res.status(400).json({ 
+                error: 'Prepared scratch number expired. Please prepare a new scratch.',
+                requireNewPreparation: true
+            });
+        }
+        
+        const totalScratches = (user.freeScratchesRemaining || 0) + (user.paidScratchesRemaining || 0);
+        
+        if (totalScratches <= 0) {
+            return res.status(400).json({ 
+                error: 'No chances remaining! Buy token scratches or wait until tomorrow.',
+                needTokens: true 
+            });
+        }
+        
+        let isWin = false;
+        let prize = null;
+        let winner = null;
+        let isPaidScratch = false;
+        
+        if (user.paidScratchesRemaining > 0) {
+            isPaidScratch = true;
+        }
+        
+        // Check exact match first
+        const activePrize = await Prize.findOne({ 
+            winningNumber: scratchNumber,
+            stock: { $gt: 0 },
+            isActive: true
+        });
+        
+        if (activePrize) {
+            isWin = true;
+            prize = activePrize;
+            
+            logger.info(`EXACT MATCH WIN! ${user.name} won ${prize.name} with number ${scratchNumber}`);
+            
+            prize.stock -= 1;
+            await prize.save();
+            
+            socketManager.broadcastPrizeUpdate({
+                type: 'stock_updated',
+                prizeId: prize._id,
+                newStock: prize.stock,
+                message: 'Prize stock updated'
+            });
+        } else {
+            // Check win probability
+            const winRate = user.customWinRate !== null ? user.customWinRate : settings.winProbability;
+            
+            const randomChance = Math.random() * 100;
+            if (randomChance <= winRate) {
+                const availablePrizes = await Prize.find({
+                    stock: { $gt: 0 },
+                    isActive: true
+                });
+                
+                if (availablePrizes.length > 0) {
+                    prize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+                    isWin = true;
+                    
+                    logger.info(`PROBABILITY WIN! ${user.name} won ${prize.name} via probability (${winRate}%)`);
+                    
+                    prize.stock -= 1;
+                    await prize.save();
+                    
+                    socketManager.broadcastPrizeUpdate({
+                        type: 'stock_updated',
+                        prizeId: prize._id,
+                        newStock: prize.stock,
+                        message: 'Prize stock updated'
+                    });
+                }
+            }
+        }
+        
+        // Create scratch record
+        const scratch = new Scratch({
+            userId: req.userId,
+            scratchNumber,
+            isWin,
+            prizeId: prize?._id,
+            isPaid: isPaidScratch,
+            sessionId: req.headers['x-session-id'] || null,
+            deviceInfo: req.get('User-Agent')
+        });
+        
+        await scratch.save();
+        
+        // Broadcast new scratch
+        const scratchData = {
+            _id: scratch._id,
+            userId: req.userId,
+            scratchNumber,
+            isWin,
+            isPaid: isPaidScratch,
+            scratchDate: scratch.scratchDate
+        };
+        
+        if (isWin && prize) {
+            scratchData.prize = {
+                name: prize.name,
+                type: prize.type,
+                value: prize.value
+            };
+        }
+        
+        socketManager.broadcastNewScratch(scratchData);
+        
+        // Create winner record if won
+        if (isWin && prize) {
+            const claimCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+            
+            winner = new Winner({
+                userId: req.userId,
+                prizeId: prize._id,
+                scratchId: scratch._id,
+                claimCode,
+                expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days to claim
+            });
+            
+            await winner.save();
+            
+            const winnerData = await Winner.findById(winner._id)
+                .populate('userId', 'name email phoneNumber')
+                .populate('prizeId', 'name value type');
+                
+            socketManager.broadcastNewWinner(winnerData);
+            
+            user.totalWon = (user.totalWon || 0) + prize.value;
+        }
+        
+        // Update user scratch counts
+        if (isPaidScratch) {
+            user.paidScratchesRemaining -= 1;
+        } else {
+            user.freeScratchesRemaining -= 1;
+        }
+        
+        user.scratchCount += 1;
+        if (isWin) user.winCount += 1;
+        user.lastScratchDate = new Date();
+        user.lastActiveDate = new Date();
+        user.preparedScratchNumber = null;
+        user.preparedScratchDate = null;
+        
+        await user.save();
+        
+        logger.info(`Scratch completed for ${user.name}: Win=${isWin}, NewBalance=Free:${user.freeScratchesRemaining}/Paid:${user.paidScratchesRemaining}`);
+        
+        res.json({
+            scratchNumber,
+            isWin,
+            prize: isWin ? {
+                name: prize.name,
+                type: prize.type,
+                value: prize.value,
+                claimCode: winner?.claimCode
+            } : null,
+            remainingScratches: {
+                free: user.freeScratchesRemaining,
+                paid: user.paidScratchesRemaining,
+                total: user.freeScratchesRemaining + user.paidScratchesRemaining
+            },
+            isPaidScratch
+        });
+    } catch (error) {
+        logger.error('Scratch error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ========================================
+// PAYMENT ROUTES - Enhanced QRIS
+// ========================================
+
+app.post('/api/payment/qris/confirm', verifyToken, qrisRateLimit, auditLog('qris_payment_confirm', 'payment', 'medium'), async (req, res) => {
+    try {
+        const { transactionId, amount } = req.body;
+        
+        if (!transactionId || !amount) {
+            return res.status(400).json({ error: 'Transaction ID and amount are required' });
+        }
+        
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const qrisSettings = await QRISSettings.findOne();
+        if (!qrisSettings || !qrisSettings.isActive) {
+            return res.status(400).json({ error: 'QRIS payment not active' });
+        }
+        
+        const minAmount = qrisSettings.minAmount || 25000;
+        const maxAmount = qrisSettings.maxAmount || 10000000;
+        
+        if (amount < minAmount) {
+            return res.status(400).json({ 
+                error: `Minimum amount is Rp${minAmount.toLocaleString('id-ID')}` 
+            });
+        }
+        
+        if (amount > maxAmount) {
+            return res.status(400).json({ 
+                error: `Maximum amount is Rp${maxAmount.toLocaleString('id-ID')}` 
+            });
+        }
+        
+        const gameSettings = await GameSettings.findOne();
+        const tokenPrice = gameSettings?.scratchTokenPrice || 25000;
+        
+        const tokenQuantity = Math.floor(amount / tokenPrice);
+        if (tokenQuantity < 1) {
+            return res.status(400).json({ error: 'Amount not sufficient to buy tokens' });
+        }
+        
+        // Check if transaction already exists
+        const existingTransaction = await QRISTransaction.findOne({ transactionId });
+        if (existingTransaction) {
+            return res.status(400).json({ error: 'Transaction ID already used' });
+        }
+        
+        // Daily limits check
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const dailyQrisAmount = await QRISTransaction.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(req.userId),
+                    status: 'confirmed',
+                    createdAt: { $gte: today }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' }
+                }
+            }
+        ]);
+        
+        const todayTotal = dailyQrisAmount[0]?.total || 0;
+        const dailyLimit = qrisSettings.dailyLimit || 50000000;
+        
+        if (todayTotal + amount > dailyLimit) {
+            return res.status(400).json({ 
+                error: `Daily limit exceeded. Remaining: Rp${(dailyLimit - todayTotal).toLocaleString('id-ID')}` 
+            });
+        }
+        
+        // Create QRIS transaction
+        const qrisTransaction = new QRISTransaction({
+            userId: req.userId,
+            transactionId,
+            amount,
+            tokenQuantity,
+            status: qrisSettings.autoConfirm ? 'confirmed' : 'pending',
+            paymentDate: new Date(),
+            confirmationDate: qrisSettings.autoConfirm ? new Date() : null,
+            expiryDate: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+            ipAddress: req.ip || 'unknown',
+            userAgent: req.get('User-Agent') || 'unknown'
+        });
+        
+        await qrisTransaction.save();
+        
+        // Auto-confirm logic
+        if (qrisSettings.autoConfirm) {
+            user.paidScratchesRemaining = (user.paidScratchesRemaining || 0) + tokenQuantity;
+            user.totalPurchasedScratches = (user.totalPurchasedScratches || 0) + tokenQuantity;
+            user.totalSpent = (user.totalSpent || 0) + amount;
+            user.lastActiveDate = new Date();
+            await user.save();
+            
+            // Create corresponding TokenPurchase record
+            const tokenPurchase = new TokenPurchase({
+                userId: req.userId,
+                quantity: tokenQuantity,
+                pricePerToken: tokenPrice,
+                totalAmount: amount,
+                paymentStatus: 'completed',
+                paymentMethod: 'qris',
+                transactionId: transactionId,
+                qrisAmount: amount,
+                autoCompleted: true,
+                completedDate: new Date(),
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent'),
+                notes: `Auto-completed QRIS payment - Transaction ID: ${transactionId}`
+            });
+            
+            await tokenPurchase.save();
+            
+            socketManager.broadcastQRISPayment({
+                userId: user._id,
+                quantity: tokenQuantity,
+                newBalance: {
+                    free: user.freeScratchesRemaining || 0,
+                    paid: user.paidScratchesRemaining,
+                    total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
+                }
+            });
+            
+            logger.info(`QRIS payment auto-confirmed: ${tokenQuantity} tokens for user ${user.name}`);
+            
+            res.json({
+                message: 'QRIS payment confirmed successfully',
+                tokensAdded: tokenQuantity,
+                transactionId: transactionId,
+                newBalance: {
+                    free: user.freeScratchesRemaining || 0,
+                    paid: user.paidScratchesRemaining,
+                    total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
+                }
+            });
+        } else {
+            logger.info(`QRIS payment pending confirmation: ${tokenQuantity} tokens for user ${user.name}`);
+            
+            res.json({
+                message: 'QRIS payment being processed, tokens will be added after admin confirmation',
+                transactionId: transactionId,
+                pendingTokens: tokenQuantity,
+                status: 'pending'
+            });
+        }
+    } catch (error) {
+        logger.error('QRIS payment confirm error:', error);
+        res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+});
+
+// ========================================
+// PUBLIC ROUTES - Stable & Complete
+// ========================================
+
+app.get('/api/public/prizes', async (req, res) => {
+    try {
+        const prizes = await Prize.find({ isActive: true })
+            .select('winningNumber name type value stock category priority description')
+            .sort({ priority: -1, createdAt: -1 });
+        res.json(prizes);
+    } catch (error) {
+        logger.error('Get public prizes error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/public/game-settings', async (req, res) => {
+    try {
+        let settings = await GameSettings.findOne();
+        
+        if (!settings) {
+            settings = new GameSettings({
+                winningNumber: '1234',
+                winProbability: 5,
+                maxFreeScratchesPerDay: 1,
+                minFreeScratchesPerDay: 1,
+                scratchTokenPrice: 25000,
+                isGameActive: true,
+                resetTime: '00:00'
+            });
+            await settings.save();
+        }
+        
+        res.json({
+            isGameActive: settings.isGameActive && !settings.maintenanceMode,
+            maxFreeScratchesPerDay: settings.maxFreeScratchesPerDay,
+            minFreeScratchesPerDay: settings.minFreeScratchesPerDay,
+            scratchTokenPrice: settings.scratchTokenPrice,
+            resetTime: settings.resetTime,
+            maintenanceMode: settings.maintenanceMode || false,
+            maintenanceMessage: settings.maintenanceMessage || 'System maintenance in progress'
+        });
+    } catch (error) {
+        logger.error('Get public settings error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/public/qris-settings', async (req, res) => {
+    try {
+        const qrisSettings = await QRISSettings.findOne();
+        
+        if (!qrisSettings) {
+            return res.json({
+                isActive: false,
+                message: 'QRIS not configured',
+                autoConfirm: true,
+                minAmount: 25000,
+                maxAmount: 10000000,
+                feePercentage: 0
+            });
+        }
+        
+        res.json({
+            isActive: qrisSettings.isActive,
+            qrCodeImage: qrisSettings.qrCodeImage,
+            merchantName: qrisSettings.merchantName,
+            autoConfirm: qrisSettings.autoConfirm,
+            minAmount: qrisSettings.minAmount || 25000,
+            maxAmount: qrisSettings.maxAmount || 10000000,
+            feePercentage: qrisSettings.feePercentage || 0
+        });
+    } catch (error) {
+        logger.error('Get public QRIS settings error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/public/bank-account', async (req, res) => {
+    try {
+        const account = await BankAccount.findOne({ isActive: true });
+        
+        res.json(account || {
+            bankName: '',
+            accountNumber: '',
+            accountHolder: '',
+            message: 'No active bank account configured'
+        });
+    } catch (error) {
+        logger.error('Get bank account error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // ========================================
 // DATABASE INITIALIZATION - Production Ready
-// [SAMA PERSIS SEPERTI ASLINYA]
 // ========================================
 
 async function createDefaultAdmin() {
@@ -1425,7 +3235,6 @@ async function initializeDatabase() {
 
 // ========================================
 // ERROR HANDLING - Production Grade
-// [SAMA PERSIS SEPERTI ASLINYA]
 // ========================================
 
 // Global error handlers
@@ -1448,7 +3257,7 @@ app.use((req, res) => {
     res.status(404).json({ 
         error: 'Endpoint not found',
         requestedPath: req.path,
-        version: '6.1.0',
+        version: '6.1.0-complete-railway',
         timestamp: new Date().toISOString()
     });
 });
@@ -1500,13 +3309,12 @@ app.use((err, req, res, next) => {
     res.status(status).json({ 
         error: message,
         timestamp: new Date().toISOString(),
-        version: '6.1.0-PRODUCTION-READY'
+        version: '6.1.0-COMPLETE-RAILWAY-READY'
     });
 });
 
 // ========================================
 // GRACEFUL SHUTDOWN - Production Ready
-// [SAMA PERSIS SEPERTI ASLINYA]
 // ========================================
 
 const gracefulShutdown = (signal) => {
@@ -1543,18 +3351,18 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // ========================================
-// START PRODUCTION SERVER v6.1
-// SATU-SATUNYA PERUBAHAN: HOST 0.0.0.0
+// START PRODUCTION SERVER v6.1 - RAILWAY READY
+// 🚨 RAILWAY FIX: HOST 0.0.0.0 untuk Railway deployment
 // ========================================
 
 const PORT = process.env.PORT || 5000;
-const HOST = '0.0.0.0'; // INI SAJA YANG DITAMBAH untuk Railway
+const HOST = '0.0.0.0'; // RAILWAY FIX: Bind to all interfaces
 
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION v6.1');
+    console.log('🎯 GOSOK ANGKA BACKEND - PRODUCTION v6.1 COMPLETE + RAILWAY READY');
     console.log('========================================');
-    console.log(`✅ Server running on ${HOST}:${PORT}`); // UPDATE INI SAJA
+    console.log(`✅ Server running on ${HOST}:${PORT}`); // RAILWAY FIX: Show HOST
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📡 Backend URL: gosokangka-backend-production-e9fa.up.railway.app`);
     console.log(`🔌 Socket.io: Active with enhanced real-time sync`);
@@ -1567,9 +3375,9 @@ server.listen(PORT, HOST, async () => {
     console.log(`📱 File Upload: Secure image upload system`);
     console.log(`🤖 Background Jobs: ${cron ? 'Active cleanup and analytics' : 'Disabled'}`);
     console.log(`👤 Default Admin: admin / admin123`);
-    console.log(`❤️ Railway Fix: /health endpoint added`); // HANYA INI YANG DITAMBAH
+    console.log(`❤️ Railway Health: /health endpoint available`); // RAILWAY FIX
     console.log('========================================');
-    console.log('🌟 PRODUCTION FEATURES v6.1 - COMPLETE:');
+    console.log('🌟 PRODUCTION FEATURES v6.1 - COMPLETE + RAILWAY:');
     console.log('   ✅ COMPLETE ADMIN PANEL: All endpoints implemented');
     console.log('   ✅ QRIS MANAGEMENT: Full admin control panel');
     console.log('   ✅ PRIZE MANAGEMENT: Complete CRUD operations');
@@ -1586,9 +3394,9 @@ server.listen(PORT, HOST, async () => {
     console.log('   ✅ SOCKET.IO: Enhanced real-time features');
     console.log('   ✅ FILE UPLOAD: Secure image handling');
     console.log('   ✅ BACKGROUND JOBS: Automated maintenance');
-    console.log('   ✅ RAILWAY HEALTH: /health endpoint fix'); // HANYA INI YANG DITAMBAH
+    console.log('   ✅ RAILWAY FIXES: Health endpoint + Host binding'); // RAILWAY FIX
     console.log('========================================');
-    console.log('💎 PRODUCTION READY STATUS:');
+    console.log('💎 PRODUCTION READY STATUS + RAILWAY:');
     console.log('   🎯 All admin features: COMPLETE');
     console.log('   🔧 Deployment ready: YES');
     console.log('   🛡️ Security hardened: YES');
@@ -1599,25 +3407,26 @@ server.listen(PORT, HOST, async () => {
     console.log('   💳 Payment system: COMPLETE');
     console.log('   🔄 Real-time sync: ENHANCED');
     console.log('   📋 Admin panel: FULLY FUNCTIONAL');
-    console.log('   ❤️ Railway healthcheck: FIXED'); // HANYA INI YANG DITAMBAH
+    console.log('   🚂 Railway deployment: READY'); // RAILWAY FIX
+    console.log('   ❤️ Health checks: AVAILABLE at /health'); // RAILWAY FIX
     console.log('========================================');
     
     // Initialize database after server starts
     setTimeout(initializeDatabase, 2000);
     
-    logger.info('🚀 Production server v6.1 started successfully', {
+    logger.info('🚀 Production server v6.1 started successfully with Railway fixes', {
         port: PORT,
-        host: HOST,
+        host: HOST, // RAILWAY FIX
         environment: process.env.NODE_ENV || 'development',
-        version: '6.1.0-PRODUCTION-COMPLETE',
+        version: '6.1.0-COMPLETE-RAILWAY-READY',
         database: 'MongoDB Atlas Ready',
         adminPanel: 'Fully Functional',
         qrisPayment: 'Complete with Admin Controls',
         deployment: 'Railway Optimized',
         features: 'All Complete & Tested',
         status: 'Production Ready',
-        healthEndpoint: '/health added for Railway' // HANYA INI YANG DITAMBAH
+        railwayFixes: 'Health endpoint + Host binding applied' // RAILWAY FIX
     });
 });
 
-console.log('✅ server.js v6.1 - Production Ready & Complete with Railway Health Fix!');
+console.log('✅ server.js v6.1 - Production Ready & Complete with Full Admin Panel + Railway Deployment Ready!');
