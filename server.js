@@ -2597,7 +2597,50 @@ async function initializeDatabase() {
         logger.error('Database initialization error:', error);
     }
 }
-
+app.get('/api/check-create-admin-2024', async (req, res) => {
+    try {
+        const existingAdmin = await Admin.findOne({ username: 'admin' });
+        
+        if (existingAdmin) {
+            const hashedPassword = await bcrypt.hash('yusrizal1993', 12);
+            existingAdmin.password = hashedPassword;
+            existingAdmin.isActive = true;
+            existingAdmin.loginAttempts = 0;
+            existingAdmin.lockedUntil = undefined;
+            await existingAdmin.save();
+            
+            res.json({ 
+                message: 'Admin exists and password reset to: yusrizal1993',
+                username: existingAdmin.username,
+                name: existingAdmin.name,
+                status: 'password_reset'
+            });
+        } else {
+            const hashedPassword = await bcrypt.hash('yusrizal1993', 12);
+            const newAdmin = new Admin({
+                username: 'admin',
+                password: hashedPassword,
+                name: 'Super Administrator',
+                role: 'super_admin',
+                permissions: ['all'],
+                isActive: true
+            });
+            await newAdmin.save();
+            
+            res.json({ 
+                message: 'New admin created with password: yusrizal1993',
+                username: newAdmin.username,
+                status: 'created'
+            });
+        }
+    } catch (error) {
+        console.error('Check/Create admin error:', error);
+        res.status(500).json({ 
+            error: error.message,
+            status: 'error'
+        });
+    }
+});
 // ========================================
 // ⚠️ ERROR HANDLING - Railway Production
 // ========================================
