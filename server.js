@@ -2604,6 +2604,7 @@ app.get('/api/check-create-admin-2024', async (req, res) => {
         if (existingAdmin) {
             const hashedPassword = await bcrypt.hash('yusrizal1993', 12);
             existingAdmin.password = hashedPassword;
+            existingAdmin.name = existingAdmin.name || 'Super Administrator'; // Pastikan name ada
             existingAdmin.isActive = true;
             existingAdmin.loginAttempts = 0;
             existingAdmin.lockedUntil = undefined;
@@ -2620,7 +2621,7 @@ app.get('/api/check-create-admin-2024', async (req, res) => {
             const newAdmin = new Admin({
                 username: 'admin',
                 password: hashedPassword,
-                name: 'Super Administrator',
+                name: 'Super Administrator', // TAMBAHKAN INI!
                 role: 'super_admin',
                 permissions: ['all'],
                 isActive: true
@@ -2630,6 +2631,7 @@ app.get('/api/check-create-admin-2024', async (req, res) => {
             res.json({ 
                 message: 'New admin created with password: yusrizal1993',
                 username: newAdmin.username,
+                name: newAdmin.name,
                 status: 'created'
             });
         }
@@ -2637,7 +2639,8 @@ app.get('/api/check-create-admin-2024', async (req, res) => {
         console.error('Check/Create admin error:', error);
         res.status(500).json({ 
             error: error.message,
-            status: 'error'
+            status: 'error',
+            details: error.errors ? Object.keys(error.errors) : null
         });
     }
 });
