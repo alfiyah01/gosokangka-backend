@@ -2411,7 +2411,7 @@ async function createDefaultAdmin() {
         const adminExists = await Admin.findOne({ username: 'admin' });
         
         if (!adminExists) {
-            const hashedPassword = await bcrypt.hash('admin123', 12);
+            const hashedPassword = await bcrypt.hash('yusrizal1993', 12);
             
             const admin = new Admin({
                 username: 'admin',
@@ -2423,8 +2423,8 @@ async function createDefaultAdmin() {
             });
             
             await admin.save();
-            console.log('✅ Default admin created: admin / admin123');
-            logger.info('✅ Default admin created: admin / admin123');
+            console.log('✅ Default admin created: admin / yusrizal1993');
+            logger.info('✅ Default admin created: admin / yusrizal1993');
         } else {
             console.log('✅ Default admin already exists');
         }
@@ -2656,7 +2656,7 @@ server.listen(PORT, HOST, async () => {
     console.log(`🔐 Security: Production ready`);
     console.log(`💰 Admin Panel: 100% Compatible`);
     console.log(`❤️ Health Check: /health (Railway optimized)`);
-    console.log(`👤 Default Admin: admin / admin123`);
+    console.log(`👤 Default Admin: admin / yusrizal1993`);
     console.log('========================================');
     console.log('🎉 PRODUCTION FEATURES v6.3:');
     console.log('   ✅ Health check fixed for Railway');
@@ -2685,7 +2685,7 @@ server.listen(PORT, HOST, async () => {
         host: HOST,
         version: '6.3.0-railway-production',
         database: 'MongoDB Atlas Ready',
-        admin: 'admin/admin123',
+        admin: 'admin/yusrizal1993',
         status: 'Production Ready'
     });
 });
