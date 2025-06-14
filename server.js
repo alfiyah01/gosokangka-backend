@@ -56,7 +56,7 @@ function validateEnvironment() {
     
     // Set MongoDB URI default if not provided
     if (!process.env.MONGODB_URI) {
-        process.env.MONGODB_URI = 'mongodb+srv://yusrizal00:Yusrizal123@gosokangka-db.5lqgepm.mongodb.net/gosokangka?retryWrites=true&w=majority&appName=gosokangka-db';
+        process.env.MONGODB_URI = 'mongodb+srv://yusrizal00:Yusrizal1993@gosokangka-db.5lqgepm.mongodb.net/gosokangka?retryWrites=true&w=majority&appName=gosokangka-db';
         console.log('✅ Using default MongoDB Atlas connection');
     }
     
