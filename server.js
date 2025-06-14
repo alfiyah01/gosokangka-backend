@@ -34,14 +34,6 @@ try {
 }
 
 const app = express();
-
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-
-const upload = multer({ dest: "uploads/" });
-app.use("/uploads", express.static("uploads"));
-
 const server = http.createServer(app);
 
 // ========================================
@@ -2998,46 +2990,3 @@ server.listen(PORT, HOST, async () => {
 });
 
 console.log('✅ server.js v7.1 - Railway Production Enhanced - QRIS ENHANCED WITH BETTER VALIDATION!');
-
-
-// ============================
-// QRIS SETTINGS & NOTIFY
-// ============================
-
-app.post("/api/admin/updateQRISSettings", upload.single("qrisImage"), async (req, res) => {
-  try {
-    const { merchantName, minAmount, maxAmount } = req.body;
-    const newFilename = `qris_${Date.now()}.png`;
-    const newPath = path.join("uploads", newFilename);
-    fs.renameSync(req.file.path, newPath);
-
-    const settings = {
-      isActive: true,
-      merchantName,
-      minAmount,
-      maxAmount,
-      qrCodeImage: `/uploads/${newFilename}`,
-    };
-
-    fs.writeFileSync("qris_settings.json", JSON.stringify(settings, null, 2));
-    res.json({ success: true, message: "QRIS updated", settings });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "QRIS update failed", error });
-  }
-});
-
-app.post("/api/qris/notify", (req, res) => {
-  const { userId, amount } = req.body;
-  console.log(`[QRIS] User ${userId} claimed payment of Rp${amount}`);
-  res.json({ success: true, message: "Notifikasi pembayaran diterima" });
-});
-
-app.get("/api/qris", (req, res) => {
-  try {
-    const data = fs.readFileSync("qris_settings.json");
-    const settings = JSON.parse(data);
-    res.json(settings);
-  } catch {
-    res.json({ isActive: false });
-  }
-});
