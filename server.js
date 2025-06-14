@@ -1073,7 +1073,7 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, auditLog
     }
 });
 
-app.post('/api/admin/login', authRateLimit, validateAdminLogin, auditLog('admin_login', 'admin', 'high'), async (req, res) => {
+app.post('/api/auth/login', authRateLimit, validateAdminLogin, auditLog('admin_login', 'admin', 'high'), async (req, res) => {
     try {
         const { identifier, password, email } = req.body;
         
@@ -1148,7 +1148,7 @@ app.post('/api/admin/login', authRateLimit, validateAdminLogin, auditLog('admin_
 // ADMIN ROUTES - LOGIN & MANAGEMENT
 // ========================================
 
-app.post('/api/admin/login', authRateLimit, validateLogin, auditLog('admin_login', 'admin', 'high'), async (req, res) => {
+app.post('/api/auth/login', authRateLimit, validateUserLogin, auditLog('admin_login', 'admin', 'high'), async (req, res) => {
     try {
         const { username, password } = req.body;
         
