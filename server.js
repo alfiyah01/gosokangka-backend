@@ -586,7 +586,21 @@ const validateLogin = [
     
     handleValidationErrors
 ];
-
+// Validasi admin login yang terpisah - BARU
+const validateAdminLogin = [
+    body('username')
+        .trim()
+        .notEmpty()
+        .withMessage('Username harus diisi')
+        .isLength({ min: 3, max: 50 })
+        .withMessage('Username harus 3-50 karakter'),
+    
+    body('password')
+        .notEmpty()
+        .withMessage('Password harus diisi'),
+    
+    handleValidationErrors
+];
 // Validasi hadiah
 const validatePrize = [
     body('winningNumber')
@@ -1059,7 +1073,7 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, auditLog
     }
 });
 
-app.post('/api/auth/login', authRateLimit, validateLogin, auditLog('user_login', 'user', 'medium'), async (req, res) => {
+app.post('/api/admin/login', authRateLimit, validateAdminLogin, auditLog('admin_login', 'admin', 'high'), async (req, res) => {
     try {
         const { identifier, password, email } = req.body;
         
