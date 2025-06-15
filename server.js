@@ -108,7 +108,6 @@ app.use(morgan('combined', { stream: { write: message =>
 
 
 
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -117,10 +116,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -150,17 +146,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -204,10 +192,9 @@ async function connectDB() {
     try {
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -216,10 +203,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -249,17 +233,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -294,10 +270,9 @@ logger.info('🔌 Connecting to MongoDB Atlas for Railway...');
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -306,10 +281,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -339,17 +311,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -565,10 +529,9 @@ const socketManager = {
         io.emit('prizes:updated', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -577,10 +540,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -610,17 +570,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -647,10 +599,9 @@ logger.info('Broadcasting prize update');
         io.emit('settings:updated', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -659,10 +610,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -692,17 +640,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -729,10 +669,9 @@ logger.info('Broadcasting settings update');
         io.emit('users:updated', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -741,10 +680,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -774,17 +710,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -811,10 +739,9 @@ logger.info('Broadcasting user update');
         io.emit('winner:new', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -823,10 +750,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -856,17 +780,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -893,10 +809,9 @@ logger.info('Broadcasting new winner');
         io.emit('scratch:new', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -905,10 +820,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -938,17 +850,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -975,10 +879,9 @@ logger.info('Broadcasting new scratch');
         io.emit('user:new-registration', data);
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -987,10 +890,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1020,17 +920,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -1331,10 +1223,9 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
     
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -1343,10 +1234,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1376,17 +1264,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -1418,10 +1298,9 @@ logger.info('User connected:', socket.userId);
     socket.on('disconnect', (reason) => {
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -1430,10 +1309,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1463,17 +1339,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -1628,10 +1496,9 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -1640,10 +1507,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1673,17 +1537,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -1786,10 +1642,9 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -1798,10 +1653,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1831,17 +1683,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -1934,10 +1778,9 @@ app.post('/api/admin/login', authRateLimit, validateAdminLogin, async (req, res)
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -1946,10 +1789,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -1979,17 +1819,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2066,10 +1898,9 @@ app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2078,10 +1909,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2111,17 +1939,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2310,10 +2130,9 @@ app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, ad
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2322,10 +2141,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2355,17 +2171,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2414,10 +2222,9 @@ app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, adminRate
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2426,10 +2233,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2459,17 +2263,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2547,10 +2343,9 @@ app.put('/api/admin/users/:userId/forced-winning', verifyToken, verifyAdmin, adm
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2559,10 +2354,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2592,17 +2384,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2671,10 +2455,9 @@ app.post('/api/admin/users/:userId/add-tokens', verifyToken, verifyAdmin, adminR
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2683,10 +2466,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2716,17 +2496,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2816,10 +2588,9 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, adminRateLimit, async (r
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2828,10 +2599,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2861,17 +2629,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -2944,10 +2704,9 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimit, 
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -2956,10 +2715,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -2989,17 +2745,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3048,10 +2796,9 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimi
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3060,10 +2807,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3093,17 +2837,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3172,10 +2908,9 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, adminRateLimit, as
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3184,10 +2919,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3217,17 +2949,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3297,10 +3021,9 @@ app.put('/api/admin/winners/:winnerId/claim-status', verifyToken, verifyAdmin, a
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3309,10 +3032,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3342,17 +3062,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3383,31 +3095,7 @@ logger.info('Winner claim status updated:', winnerId, 'Status:', claimStatus);
 });
 
 // Token Purchase Management
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        const { page = 1, limit = 20, status = 'all' } = req.query;
-        
-        let query = {};
-        if (status !== 'all') {
-            query.paymentStatus = status;
-        }
-        
-        const purchases = await TokenPurchase.find(query)
-            .populate('userId', 'name email phoneNumber')
-            .populate('adminId', 'name username')
-            .sort({ purchaseDate: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
-            
-        const total = await TokenPurchase.countDocuments(query);
-        
-        res.json({
-            purchases,
-            total,
-            page: parseInt(page),
-            limit: parseInt(limit),
-            totalPages: Math.ceil(total / limit)
-        });
+
     } catch (error) {
         logger.error('Get token purchases error:', error);
         res.status(500).json({ error: 'Server error: ' + error.message });
@@ -3463,10 +3151,9 @@ app.post('/api/admin/token-purchase', verifyToken, verifyAdmin, adminRateLimit, 
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3475,10 +3162,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3508,17 +3192,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3593,10 +3269,9 @@ app.put('/api/admin/token-purchase/:purchaseId/complete', verifyToken, verifyAdm
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3605,10 +3280,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3638,17 +3310,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3701,10 +3365,9 @@ app.put('/api/admin/token-purchase/:purchaseId/cancel', verifyToken, verifyAdmin
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3713,10 +3376,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -3746,17 +3406,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -3966,10 +3618,9 @@ app.post('/api/admin/bank-account', verifyToken, verifyAdmin, adminRateLimit, as
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -3978,10 +3629,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4011,17 +3659,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4072,10 +3712,9 @@ app.put('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, adminRa
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4084,10 +3723,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4117,17 +3753,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4170,10 +3798,9 @@ app.delete('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, admi
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4182,10 +3809,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4215,17 +3839,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4456,10 +4072,9 @@ app.post('/api/user/token-request', verifyToken, async (req, res) => {
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4468,10 +4083,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4501,17 +4113,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4600,10 +4204,9 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
                 await user.save();
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4612,10 +4215,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4645,17 +4245,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4709,10 +4301,9 @@ logger.info(`Reset free scratches for ${user.name} to ${user.freeScratchesRemain
                 isWinningNumber = true;
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4721,10 +4312,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4754,17 +4342,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4812,10 +4392,9 @@ logger.info(`✅ FORCED WINNING PREPARED: ${user.name} will win ${forcedPrize.na
                 
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4824,10 +4403,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4857,17 +4433,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4896,10 +4464,9 @@ logger.info(`🎯 WIN RATE SUCCESS: ${user.name} will get winning number ${scrat
                 
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -4908,10 +4475,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -4941,17 +4505,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -4992,10 +4548,9 @@ logger.info(`❌ WIN RATE FAILED: ${user.name} will get non-winning number ${scr
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5004,10 +4559,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5037,17 +4589,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5151,10 +4695,9 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                 isWin = true;
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5163,10 +4706,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5196,17 +4736,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5253,10 +4785,9 @@ logger.info(`🎯 PREPARED WIN: ${user.name} won ${prize.name} (${scratchNumber}
                 
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5265,10 +4796,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5298,17 +4826,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5342,10 +4862,9 @@ logger.info(`🎯 EXACT MATCH: ${user.name} won ${prize.name} with ${scratchNumb
             } else {
                 
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5354,10 +4873,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5387,17 +4903,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5493,10 +5001,9 @@ logger.info(`❌ NO MATCH: ${user.name} scratched ${scratchNumber} - No prize wi
         
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5505,10 +5012,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5538,17 +5042,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5697,10 +5193,9 @@ async function createDefaultAdmin() {
             console.log('✅ Default admin created: admin / yusrizal1993');
             
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5709,10 +5204,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5742,17 +5234,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5801,10 +5285,9 @@ async function createDefaultSettings() {
             await settings.save();
             
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5813,10 +5296,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5846,17 +5326,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -5943,10 +5415,9 @@ async function createSamplePrizes() {
             await Prize.insertMany(samplePrizes);
             
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -5955,10 +5426,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -5988,17 +5456,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -6041,10 +5501,9 @@ async function createDefaultBankAccount() {
             await defaultBank.save();
             
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -6053,10 +5512,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -6086,17 +5542,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -6155,10 +5603,9 @@ async function initializeDatabase() {
         console.log('🎉 Railway database initialization completed!');
         
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -6167,10 +5614,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -6200,17 +5644,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
@@ -6331,11 +5767,10 @@ const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
 
 
-
-
+const fs = require('fs');
+const path = require('path');
 
 // Tampilkan QR code statis
-app.get('/api/payment/qris', (req, res) => {
   const qrImagePath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrImagePath)) {
     res.sendFile(qrImagePath);
@@ -6345,12 +5780,7 @@ app.get('/api/payment/qris', (req, res) => {
 });
 
 // Simpan permintaan pembelian token QRIS
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
 
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({ error: 'Jumlah token tidak valid' });
     }
 
     const pricePerToken = 25000;
@@ -6381,6 +5811,26 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
+
+
+
+// [QRIS Integration - Clean Final]
+app.get('/api/payment/qris', (req, res) => {
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
 
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
@@ -6445,10 +5895,9 @@ server.listen(PORT, HOST, async () => {
     
     
 // === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
 
-
-
-app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
   if (fs.existsSync(qrPath)) {
     res.sendFile(qrPath);
@@ -6457,10 +5906,7 @@ app.get('/api/payment/qris', (req, res) => {
   }
 });
 
-app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
 
     const pricePerToken = 25000;
     const totalAmount = quantity * pricePerToken;
@@ -6490,17 +5936,9 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
-  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
-  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
-  res.json(data);
-});
 
-app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
-  const { purchaseId } = req.body;
-  try {
-    const purchase = await TokenPurchase.findById(purchaseId);
-    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+
+
     if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
 
     const user = await User.findById(purchase.userId);
