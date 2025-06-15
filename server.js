@@ -105,8 +105,8 @@ app.use(compression());
 app.use(mongoSanitize());
 app.use(morgan('combined', { stream: { write: message => 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -204,8 +204,8 @@ async function connectDB() {
     try {
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -294,8 +294,8 @@ logger.info('🔌 Connecting to MongoDB Atlas for Railway...');
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -565,8 +565,8 @@ const socketManager = {
         io.emit('prizes:updated', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -647,8 +647,8 @@ logger.info('Broadcasting prize update');
         io.emit('settings:updated', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -729,8 +729,8 @@ logger.info('Broadcasting settings update');
         io.emit('users:updated', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -811,8 +811,8 @@ logger.info('Broadcasting user update');
         io.emit('winner:new', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -893,8 +893,8 @@ logger.info('Broadcasting new winner');
         io.emit('scratch:new', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -975,8 +975,8 @@ logger.info('Broadcasting new scratch');
         io.emit('user:new-registration', data);
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -1331,8 +1331,8 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
     
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -1418,8 +1418,8 @@ logger.info('User connected:', socket.userId);
     socket.on('disconnect', (reason) => {
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -1628,8 +1628,8 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -1786,8 +1786,8 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -1934,8 +1934,8 @@ app.post('/api/admin/login', authRateLimit, validateAdminLogin, async (req, res)
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2066,8 +2066,8 @@ app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2310,8 +2310,8 @@ app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, ad
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2414,8 +2414,8 @@ app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, adminRate
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2547,8 +2547,8 @@ app.put('/api/admin/users/:userId/forced-winning', verifyToken, verifyAdmin, adm
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2671,8 +2671,8 @@ app.post('/api/admin/users/:userId/add-tokens', verifyToken, verifyAdmin, adminR
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2816,8 +2816,8 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, adminRateLimit, async (r
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -2944,8 +2944,8 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimit, 
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3048,8 +3048,8 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimi
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3172,8 +3172,8 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, adminRateLimit, as
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3297,8 +3297,8 @@ app.put('/api/admin/winners/:winnerId/claim-status', verifyToken, verifyAdmin, a
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3463,8 +3463,8 @@ app.post('/api/admin/token-purchase', verifyToken, verifyAdmin, adminRateLimit, 
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3593,8 +3593,8 @@ app.put('/api/admin/token-purchase/:purchaseId/complete', verifyToken, verifyAdm
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3701,8 +3701,8 @@ app.put('/api/admin/token-purchase/:purchaseId/cancel', verifyToken, verifyAdmin
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -3966,8 +3966,8 @@ app.post('/api/admin/bank-account', verifyToken, verifyAdmin, adminRateLimit, as
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4072,8 +4072,8 @@ app.put('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, adminRa
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4170,8 +4170,8 @@ app.delete('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, admi
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4456,8 +4456,8 @@ app.post('/api/user/token-request', verifyToken, async (req, res) => {
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4600,8 +4600,8 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
                 await user.save();
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4709,8 +4709,8 @@ logger.info(`Reset free scratches for ${user.name} to ${user.freeScratchesRemain
                 isWinningNumber = true;
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4812,8 +4812,8 @@ logger.info(`✅ FORCED WINNING PREPARED: ${user.name} will win ${forcedPrize.na
                 
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4896,8 +4896,8 @@ logger.info(`🎯 WIN RATE SUCCESS: ${user.name} will get winning number ${scrat
                 
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -4992,8 +4992,8 @@ logger.info(`❌ WIN RATE FAILED: ${user.name} will get non-winning number ${scr
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5151,8 +5151,8 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                 isWin = true;
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5253,8 +5253,8 @@ logger.info(`🎯 PREPARED WIN: ${user.name} won ${prize.name} (${scratchNumber}
                 
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5342,8 +5342,8 @@ logger.info(`🎯 EXACT MATCH: ${user.name} won ${prize.name} with ${scratchNumb
             } else {
                 
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5493,8 +5493,8 @@ logger.info(`❌ NO MATCH: ${user.name} scratched ${scratchNumber} - No prize wi
         
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5697,8 +5697,8 @@ async function createDefaultAdmin() {
             console.log('✅ Default admin created: admin / yusrizal1993');
             
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5801,8 +5801,8 @@ async function createDefaultSettings() {
             await settings.save();
             
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -5943,8 +5943,8 @@ async function createSamplePrizes() {
             await Prize.insertMany(samplePrizes);
             
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -6041,8 +6041,8 @@ async function createDefaultBankAccount() {
             await defaultBank.save();
             
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -6155,8 +6155,8 @@ async function initializeDatabase() {
         console.log('🎉 Railway database initialization completed!');
         
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
@@ -6331,8 +6331,8 @@ const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
 
 
-const fs = require('fs');
-const path = require('path');
+
+
 
 // Tampilkan QR code statis
 app.get('/api/payment/qris', (req, res) => {
@@ -6445,8 +6445,8 @@ server.listen(PORT, HOST, async () => {
     
     
 // === [QRIS Integration Start] ===
-const path = require('path');
-const fs = require('fs');
+
+
 
 app.get('/api/payment/qris', (req, res) => {
   const qrPath = path.join(__dirname, 'generate_winpay.png');
