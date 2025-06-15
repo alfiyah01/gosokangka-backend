@@ -2887,6 +2887,99 @@ app.get('/api/payment/qris', (req, res) => {
 });
 
 
+
+// ========================================
+// 🏦 QRIS TOKEN PURCHASE (clean version)
+// ========================================
+
+const path = require('path');
+const fs   = require('fs');
+
+// --- Mongoose Model (sekali saja, taruh dekat schema lain) ---
+const tokenPurchaseSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  quantity: { type: Number, required: true },
+  pricePerToken: { type: Number, default: 25000 },
+  totalAmount: { type: Number, required: true },
+  paymentMethod: { type: String, default: 'qris' },
+  paymentStatus: { type: String, enum: ['pending', 'completed'], default: 'pending' },
+  notes: String,
+  purchaseDate: { type: Date, default: Date.now }
+});
+const TokenPurchase = mongoose.model('TokenPurchase', tokenPurchaseSchema);
+
+// --- Middleware: user & admin ---
+// assumed already declared elsewhere
+
+// --- 1. Kirim gambar QRIS ---
+app.get('/api/payment/qris', (req,res)=>{
+  const qrPath = path.join(__dirname,'generate_winpay.png');
+  return fs.existsSync(qrPath)
+    ? res.sendFile(qrPath)
+    : res.status(404).json({error:'QRIS image not found'});
+});
+
+// --- 2. User minta beli token ---
+app.post('/api/payment/qris-request', verifyToken, async (req,res)=>{
+  try{
+    const quantity = Number(req.body.quantity);
+    if(!quantity || quantity<1) return res.status(400).json({error:'Jumlah token tidak valid'});
+    const pricePerToken = 25000;
+    const totalAmount   = quantity*pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId:req.userId, quantity, pricePerToken, totalAmount
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId:req.userId, quantity, method:'qris', total:totalAmount, requestId:request._id
+    });
+
+    res.json({success:true, message:'Permintaan pembayaran QRIS disimpan', request});
+  }catch(err){
+    console.error(err);
+    res.status(500).json({error:'Gagal menyimpan permintaan'});
+  }
+});
+
+// --- 3. Admin tarik daftar (optional filter) ---
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req,res)=>{
+  const filter = req.query.qrisOnly==='true' ? {paymentMethod:'qris'} : {};
+  const data = await TokenPurchase.find(filter).sort({purchaseDate:-1});
+  res.json(data);
+});
+
+// --- 4. Admin approve transaksi ---
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req,res)=>{
+  try{
+    const { purchaseId } = req.body;
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if(!purchase)          return res.status(404).json({error:'Transaksi tidak ditemukan'});
+    if(purchase.paymentStatus==='completed') return res.status(400).json({error:'Sudah selesai'});
+
+    const user = await User.findById(purchase.userId);
+    if(!user) return res.status(404).json({error:'User tidak ditemukan'});
+
+    user.token = (user.token||0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    socketManager.broadcastTokenPurchase({
+      userId: user._id,
+      newBalance: user.token,
+      quantity: purchase.quantity
+    });
+
+    res.json({success:true, message:'Transaksi diverifikasi & token ditambahkan'});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:'Kesalahan server'});
+  }
+});
+
+
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
     console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.4 COMPLETE + WIN RATE LOGIC FIXED');
