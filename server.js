@@ -2610,7 +2610,7 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
             cpu: {
                 usage: Math.random() * 20 + 10 // Simulated CPU usage
             },
-            loadAverage: process.platform !== 'win32' ? process.loadavg()[0].toFixed(2) : 'N/A',
+            loadAverage: 'N/A',
             performance: {
                 responseTime: Math.floor(Math.random() * 50) + 50 // Simulated response time
             },
