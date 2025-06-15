@@ -103,7 +103,85 @@ app.use(helmet({
 
 app.use(compression());
 app.use(mongoSanitize());
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(morgan('combined', { stream: { write: message => 
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(message.trim()) } }));
 
 // Trust Railway proxy
 app.set('trust proxy', 1);
@@ -124,7 +202,85 @@ mongoose.set('strictQuery', false);
 
 async function connectDB() {
     try {
-        logger.info('🔌 Connecting to MongoDB Atlas for Railway...');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('🔌 Connecting to MongoDB Atlas for Railway...');
         
         await mongoose.connect(process.env.MONGODB_URI, {
             useNewUrlParser: true,
@@ -136,7 +292,85 @@ async function connectDB() {
             socketTimeoutMS: 45000,
         });
         
-        logger.info('✅ MongoDB Atlas connected successfully!');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('✅ MongoDB Atlas connected successfully!');
         
         mongoose.connection.on('error', (err) => {
             logger.error('MongoDB error:', err);
@@ -329,27 +563,495 @@ const io = socketIO(server, {
 const socketManager = {
     broadcastPrizeUpdate: (data) => {
         io.emit('prizes:updated', data);
-        logger.info('Broadcasting prize update');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting prize update');
     },
     broadcastSettingsUpdate: (data) => {
         io.emit('settings:updated', data);
-        logger.info('Broadcasting settings update');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting settings update');
     },
     broadcastUserUpdate: (data) => {
         io.emit('users:updated', data);
-        logger.info('Broadcasting user update');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting user update');
     },
     broadcastNewWinner: (data) => {
         io.emit('winner:new', data);
-        logger.info('Broadcasting new winner');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting new winner');
     },
     broadcastNewScratch: (data) => {
         io.emit('scratch:new', data);
-        logger.info('Broadcasting new scratch');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting new scratch');
     },
     broadcastNewUser: (data) => {
         io.emit('user:new-registration', data);
-        logger.info('Broadcasting new user');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Broadcasting new user');
     },
     broadcastTokenPurchase: (data) => {
         io.to('admin-room').emit('token:purchased', data);
@@ -627,7 +1329,85 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-    logger.info('User connected:', socket.userId);
+    
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User connected:', socket.userId);
     
     socket.join(`user-${socket.userId}`);
     
@@ -636,7 +1416,85 @@ io.on('connection', (socket) => {
     }
 
     socket.on('disconnect', (reason) => {
-        logger.info('User disconnected:', socket.userId, 'Reason:', reason);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User disconnected:', socket.userId, 'Reason:', reason);
     });
 });
 
@@ -768,7 +1626,85 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
             { expiresIn: '7d' }
         );
         
-        logger.info('User registered:', user.email);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User registered:', user.email);
         
         res.status(201).json({
             message: 'Registration successful',
@@ -848,7 +1784,85 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
             { expiresIn: '7d' }
         );
         
-        logger.info('User logged in:', user.email);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User logged in:', user.email);
         
         res.json({
             message: 'Login successful',
@@ -918,7 +1932,85 @@ app.post('/api/admin/login', authRateLimit, validateAdminLogin, async (req, res)
             { expiresIn: '24h' }
         );
         
-        logger.info('Admin logged in:', admin.username);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Admin logged in:', admin.username);
         
         res.json({
             message: 'Login successful',
@@ -972,7 +2064,85 @@ app.post('/api/admin/change-password', verifyToken, verifyAdmin, async (req, res
         admin.password = hashedPassword;
         await admin.save();
         
-        logger.info('Admin password changed:', admin.username);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Admin password changed:', admin.username);
         
         res.json({ message: 'Password berhasil diubah' });
     } catch (error) {
@@ -1138,7 +2308,85 @@ app.post('/api/admin/users/:userId/reset-password', verifyToken, verifyAdmin, ad
         user.lockedUntil = undefined;
         await user.save();
         
-        logger.info('User password reset by admin:', user.email);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User password reset by admin:', user.email);
         
         res.json({ message: 'Password berhasil direset' });
     } catch (error) {
@@ -1164,7 +2412,85 @@ app.put('/api/admin/users/:userId/win-rate', verifyToken, verifyAdmin, adminRate
         user.customWinRate = winRate;
         await user.save();
         
-        logger.info('User win rate updated:', user.email, 'New rate:', winRate);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('User win rate updated:', user.email, 'New rate:', winRate);
         
         res.json({ message: 'Win rate berhasil diupdate', winRate });
     } catch (error) {
@@ -1219,7 +2545,85 @@ app.put('/api/admin/users/:userId/forced-winning', verifyToken, verifyAdmin, adm
         user.forcedWinningNumber = winningNumber;
         await user.save();
         
-        logger.info(`Forced winning number set for ${user.name}: ${winningNumber}${prizeInfo ? ` (${prizeInfo.name})` : ''}`);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`Forced winning number set for ${user.name}: ${winningNumber}${prizeInfo ? ` (${prizeInfo.name})` : ''}`);
         
         res.json({ 
             message: `Forced winning number berhasil diupdate`,
@@ -1265,7 +2669,85 @@ app.post('/api/admin/users/:userId/add-tokens', verifyToken, verifyAdmin, adminR
             }
         });
         
-        logger.info('Tokens added by admin:', quantity, type, 'tokens for user:', user.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Tokens added by admin:', quantity, type, 'tokens for user:', user.name);
         
         res.json({ 
             message: `${quantity} ${type} tokens berhasil ditambahkan`,
@@ -1332,7 +2814,85 @@ app.post('/api/admin/prizes', verifyToken, verifyAdmin, adminRateLimit, async (r
             message: 'Prize baru ditambahkan'
         });
         
-        logger.info('Prize added:', prize.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Prize added:', prize.name);
         
         res.status(201).json(prize);
     } catch (error) {
@@ -1382,7 +2942,85 @@ app.put('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimit, 
             message: 'Prize diupdate'
         });
         
-        logger.info('Prize updated:', prize.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Prize updated:', prize.name);
         
         res.json(prize);
     } catch (error) {
@@ -1408,7 +3046,85 @@ app.delete('/api/admin/prizes/:prizeId', verifyToken, verifyAdmin, adminRateLimi
             message: 'Prize dihapus'
         });
         
-        logger.info('Prize deleted:', prize.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Prize deleted:', prize.name);
         
         res.json({ message: 'Prize berhasil dihapus' });
     } catch (error) {
@@ -1454,7 +3170,85 @@ app.put('/api/admin/game-settings', verifyToken, verifyAdmin, adminRateLimit, as
             settings: settings
         });
         
-        logger.info('Game settings updated');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Game settings updated');
         
         res.json(settings);
     } catch (error) {
@@ -1501,7 +3295,85 @@ app.put('/api/admin/winners/:winnerId/claim-status', verifyToken, verifyAdmin, a
         }
         await winner.save();
         
-        logger.info('Winner claim status updated:', winnerId, 'Status:', claimStatus);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Winner claim status updated:', winnerId, 'Status:', claimStatus);
         
         res.json({ message: 'Status claim berhasil diupdate', claimStatus });
     } catch (error) {
@@ -1589,7 +3461,85 @@ app.post('/api/admin/token-purchase', verifyToken, verifyAdmin, adminRateLimit, 
             }
         });
         
-        logger.info('Token purchase created by admin:', quantity, 'tokens for user:', user.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Token purchase created by admin:', quantity, 'tokens for user:', user.name);
         
         res.status(201).json({
             message: 'Token purchase berhasil dibuat',
@@ -1641,7 +3591,85 @@ app.put('/api/admin/token-purchase/:purchaseId/complete', verifyToken, verifyAdm
             }
         });
         
-        logger.info('Token purchase completed:', purchase.quantity, 'tokens for user:', user.name);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Token purchase completed:', purchase.quantity, 'tokens for user:', user.name);
         
         res.json({
             message: 'Token purchase berhasil di-complete',
@@ -1671,7 +3699,85 @@ app.put('/api/admin/token-purchase/:purchaseId/cancel', verifyToken, verifyAdmin
         purchase.notes = (purchase.notes || '') + ` | Cancelled: ${reason || 'No reason'}`;
         await purchase.save();
         
-        logger.info('Token purchase cancelled:', purchaseId);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Token purchase cancelled:', purchaseId);
         
         res.json({ message: 'Token purchase berhasil di-cancel' });
     } catch (error) {
@@ -1858,7 +3964,85 @@ app.post('/api/admin/bank-account', verifyToken, verifyAdmin, adminRateLimit, as
         
         await bankAccount.save();
         
-        logger.info('Bank account created:', bankName, accountNumber);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Bank account created:', bankName, accountNumber);
         
         res.status(201).json(bankAccount);
     } catch (error) {
@@ -1886,7 +4070,85 @@ app.put('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, adminRa
         
         await account.save();
         
-        logger.info('Bank account updated:', account.bankName);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Bank account updated:', account.bankName);
         
         res.json(account);
     } catch (error) {
@@ -1906,7 +4168,85 @@ app.delete('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, admi
         
         await BankAccount.findByIdAndDelete(accountId);
         
-        logger.info('Bank account deleted:', account.bankName);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('Bank account deleted:', account.bankName);
         
         res.json({ message: 'Bank account berhasil dihapus' });
     } catch (error) {
@@ -2114,7 +4454,85 @@ app.post('/api/user/token-request', verifyToken, async (req, res) => {
             timestamp: request.purchaseDate
         });
         
-        logger.info(`Token request: ${quantity} tokens by ${user.name}`);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`Token request: ${quantity} tokens by ${user.name}`);
         
         res.json({
             message: 'Token request berhasil dibuat. Admin akan memproses segera.',
@@ -2180,7 +4598,85 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
             if (!user.lastScratchDate || user.lastScratchDate < today) {
                 user.freeScratchesRemaining = settings.maxFreeScratchesPerDay || 1;
                 await user.save();
-                logger.info(`Reset free scratches for ${user.name} to ${user.freeScratchesRemaining}`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`Reset free scratches for ${user.name} to ${user.freeScratchesRemaining}`);
             } else {
                 return res.status(400).json({ 
                     error: 'Kesempatan habis! Beli token scratch atau tunggu besok.',
@@ -2211,7 +4707,85 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
                 user.forcedWinningNumber = null;
             } else {
                 isWinningNumber = true;
-                logger.info(`✅ FORCED WINNING PREPARED: ${user.name} will win ${forcedPrize.name} (${scratchNumber})`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`✅ FORCED WINNING PREPARED: ${user.name} will win ${forcedPrize.name} (${scratchNumber})`);
             }
         }
         
@@ -2236,13 +4810,169 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
                 forcedPrize = selectedPrize;
                 isWinningNumber = true;
                 
-                logger.info(`🎯 WIN RATE SUCCESS: ${user.name} will get winning number ${scratchNumber} (${selectedPrize.name}) - Rate: ${winRate}%, Roll: ${randomChance.toFixed(1)}%`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`🎯 WIN RATE SUCCESS: ${user.name} will get winning number ${scratchNumber} (${selectedPrize.name}) - Rate: ${winRate}%, Roll: ${randomChance.toFixed(1)}%`);
             } else {
                 // ❌ TIDAK AKAN MENANG: Berikan angka yang TIDAK ADA di winning numbers
                 scratchNumber = generateNonWinningNumber(winningNumbers);
                 isWinningNumber = false;
                 
-                logger.info(`❌ WIN RATE FAILED: ${user.name} will get non-winning number ${scratchNumber} - Rate: ${winRate}%, Roll: ${randomChance.toFixed(1)}%`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`❌ WIN RATE FAILED: ${user.name} will get non-winning number ${scratchNumber} - Rate: ${winRate}%, Roll: ${randomChance.toFixed(1)}%`);
             }
         }
         
@@ -2260,7 +4990,85 @@ app.post('/api/game/prepare-scratch', verifyToken, async (req, res) => {
         
         await user.save();
         
-        logger.info(`Prepared scratch ${scratchNumber} for ${user.name} - Will win: ${isWinningNumber}${forcedPrize ? ` (${forcedPrize.name})` : ''}`);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`Prepared scratch ${scratchNumber} for ${user.name} - Will win: ${isWinningNumber}${forcedPrize ? ` (${forcedPrize.name})` : ''}`);
         
         res.json({
             message: 'Scratch berhasil disiapkan',
@@ -2341,7 +5149,85 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
             
             if (prize && prize.stock > 0 && prize.isActive) {
                 isWin = true;
-                logger.info(`🎯 PREPARED WIN: ${user.name} won ${prize.name} (${scratchNumber})`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`🎯 PREPARED WIN: ${user.name} won ${prize.name} (${scratchNumber})`);
                 
                 // Update stock
                 prize.stock -= 1;
@@ -2365,7 +5251,85 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                 isWin = true;
                 prize = exactMatchPrize;
                 
-                logger.info(`🎯 EXACT MATCH: ${user.name} won ${prize.name} with ${scratchNumber}`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`🎯 EXACT MATCH: ${user.name} won ${prize.name} with ${scratchNumber}`);
                 
                 prize.stock -= 1;
                 await prize.save();
@@ -2376,7 +5340,85 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
                     newStock: prize.stock
                 });
             } else {
-                logger.info(`❌ NO MATCH: ${user.name} scratched ${scratchNumber} - No prize with this number`);
+                
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`❌ NO MATCH: ${user.name} scratched ${scratchNumber} - No prize with this number`);
             }
         }
         
@@ -2449,7 +5491,85 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
         
         await user.save();
         
-        logger.info(`✅ SCRATCH COMPLETED for ${user.name}: Win=${isWin}${prize ? ` (${prize.name})` : ''}, Balance=Free:${user.freeScratchesRemaining}/Paid:${user.paidScratchesRemaining}`);
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info(`✅ SCRATCH COMPLETED for ${user.name}: Win=${isWin}${prize ? ` (${prize.name})` : ''}, Balance=Free:${user.freeScratchesRemaining}/Paid:${user.paidScratchesRemaining}`);
         
         res.json({
             scratchNumber,
@@ -2575,7 +5695,85 @@ async function createDefaultAdmin() {
             
             await admin.save();
             console.log('✅ Default admin created: admin / yusrizal1993');
-            logger.info('✅ Default admin created: admin / yusrizal1993');
+            
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('✅ Default admin created: admin / yusrizal1993');
         } else {
             console.log('✅ Default admin already exists');
         }
@@ -2601,7 +5799,85 @@ async function createDefaultSettings() {
             });
             
             await settings.save();
-            logger.info('✅ Default game settings created');
+            
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('✅ Default game settings created');
         }
     } catch (error) {
         logger.error('Error creating default settings:', error);
@@ -2665,7 +5941,85 @@ async function createSamplePrizes() {
             ];
             
             await Prize.insertMany(samplePrizes);
-            logger.info('✅ Sample prizes created with correct mapping');
+            
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('✅ Sample prizes created with correct mapping');
         }
     } catch (error) {
         logger.error('Error creating sample prizes:', error);
@@ -2685,7 +6039,85 @@ async function createDefaultBankAccount() {
             });
             
             await defaultBank.save();
-            logger.info('✅ Default bank account created');
+            
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('✅ Default bank account created');
         }
     } catch (error) {
         logger.error('Error creating default bank account:', error);
@@ -2721,7 +6153,85 @@ async function initializeDatabase() {
         await createDefaultBankAccount();
         
         console.log('🎉 Railway database initialization completed!');
-        logger.info('🎉 Railway database initialization completed!');
+        
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('🎉 Railway database initialization completed!');
     } catch (error) {
         logger.error('Database initialization error:', error);
     }
@@ -2872,21 +6382,6 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
 });
 
 
-
-// === QRIS Image Endpoint ===
-const path = require('path');
-const fs = require('fs');
-
-app.get('/api/payment/qris', (req, res) => {
-  const qrPath = path.join(__dirname, 'generate_winpay.png');
-  if (fs.existsSync(qrPath)) {
-    res.sendFile(qrPath);
-  } else {
-    res.status(404).json({ error: 'QRIS image not found' });
-  }
-});
-
-
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
     console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.4 COMPLETE + WIN RATE LOGIC FIXED');
@@ -2948,7 +6443,85 @@ server.listen(PORT, HOST, async () => {
     console.log('🔧 Starting database initialization...');
     await initializeDatabase();
     
-    logger.info('🚀 Railway server v7.4 COMPLETE started successfully - ALL FEATURES + WIN RATE LOGIC FIXED ✅', {
+    
+// === [QRIS Integration Start] ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (!quantity || quantity < 1) return res.status(400).json({ error: 'Jumlah token tidak valid' });
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan QRIS disimpan', request });
+  } catch (err) {
+    console.error('QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+app.get('/api/admin/token-purchases', verifyToken, verifyAdmin, async (req, res) => {
+  const filter = req.query.qrisOnly ? { paymentMethod: 'qris' } : {};
+  const data = await TokenPurchase.find(filter).sort({ purchaseDate: -1 }).limit(100);
+  res.json(data);
+});
+
+app.post('/api/admin/approve-qris', verifyToken, verifyAdmin, async (req, res) => {
+  const { purchaseId } = req.body;
+  try {
+    const purchase = await TokenPurchase.findById(purchaseId);
+    if (!purchase) return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
+    if (purchase.paymentStatus === 'completed') return res.status(400).json({ error: 'Transaksi sudah selesai' });
+
+    const user = await User.findById(purchase.userId);
+    if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    user.token = (user.token || 0) + purchase.quantity;
+    await user.save();
+
+    purchase.paymentStatus = 'completed';
+    await purchase.save();
+
+    res.json({ success: true, message: 'Transaksi diverifikasi dan token ditambahkan.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Kesalahan server' });
+  }
+});
+// === [QRIS Integration End] ===
+
+
+logger.info('🚀 Railway server v7.4 COMPLETE started successfully - ALL FEATURES + WIN RATE LOGIC FIXED ✅', {
         port: PORT,
         host: HOST,
         version: '7.4.0-win-rate-logic-fixed',
