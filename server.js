@@ -2820,6 +2820,58 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
 
+
+const fs = require('fs');
+const path = require('path');
+
+// Tampilkan QR code statis
+app.get('/api/payment/qris', (req, res) => {
+  const qrImagePath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrImagePath)) {
+    res.sendFile(qrImagePath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+// Simpan permintaan pembelian token QRIS
+app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Jumlah token tidak valid' });
+    }
+
+    const pricePerToken = 25000;
+    const totalAmount = quantity * pricePerToken;
+
+    const request = await TokenPurchase.create({
+      userId: req.userId,
+      quantity,
+      pricePerToken,
+      totalAmount,
+      paymentStatus: 'pending',
+      paymentMethod: 'qris',
+      notes: 'Menunggu pembayaran via QRIS'
+    });
+
+    socketManager.broadcastTokenRequest({
+      userId: req.userId,
+      quantity,
+      method: 'qris',
+      total: totalAmount,
+      requestId: request._id
+    });
+
+    res.json({ success: true, message: 'Permintaan pembayaran QRIS disimpan', request });
+  } catch (err) {
+    console.error('❌ QRIS Request Error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan permintaan pembayaran' });
+  }
+});
+
+
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
     console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.4 COMPLETE + WIN RATE LOGIC FIXED');
