@@ -1,9 +1,9 @@
 // ========================================
 // 🚀 GOSOK ANGKA BACKEND - COMPLETE FINAL v7.1 RAILWAY PRODUCTION
-// ✅ ENHANCED: QRIS Upload & Payment dengan Better Validation
+// ✅ NO QRIS VERSION - CLEAN & STABLE
 // 🔗 Backend URL: gosokangka-backend-production-e9fa.up.railway.app
 // 📊 DATABASE: MongoDB Atlas (gosokangka-db) - Complete Schema
-// 🎯 100% PRODUCTION READY dengan ALL FEATURES WORKING + QRIS ENHANCED
+// 🎯 100% PRODUCTION READY dengan ALL FEATURES WORKING (tanpa QRIS)
 // ========================================
 
 require('dotenv').config();
@@ -245,7 +245,7 @@ app.options('*', (req, res) => {
 });
 
 // ========================================
-// 📁 FILE UPLOAD - Railway Optimized dengan QR Code Support
+// 📁 FILE UPLOAD - Railway Optimized
 // ========================================
 
 const storage = multer.memoryStorage();
@@ -298,7 +298,7 @@ const io = socketIO(server, {
     pingInterval: 25000
 });
 
-// Socket Manager - Enhanced untuk Admin Panel
+// Socket Manager - Enhanced untuk Admin Panel (tanpa QRIS)
 const socketManager = {
     broadcastPrizeUpdate: (data) => {
         io.emit('prizes:updated', data);
@@ -335,30 +335,6 @@ const socketManager = {
     },
     broadcastTokenRequest: (data) => {
         io.to('admin-room').emit('token:request-received', data);
-    },
-    broadcastQRISPayment: (data) => {
-        io.to('admin-room').emit('qris:payment-received', data);
-        io.to(`user-${data.userId}`).emit('qris:payment-approved', {
-            userId: data.userId,
-            newBalance: data.newBalance,
-            quantity: data.quantity,
-            message: `Pembayaran QRIS berhasil! ${data.quantity} token ditambahkan.`
-        });
-    },
-    notifyQRISPending: (data) => {
-        io.to('admin-room').emit('qris:payment-notification', data);
-        io.to(`user-${data.userId}`).emit('qris:payment-pending', {
-            userId: data.userId,
-            transactionId: data.transactionId,
-            message: 'Admin telah diberitahu tentang pembayaran QRIS Anda'
-        });
-    },
-    rejectQRISPayment: (data) => {
-        io.to(`user-${data.userId}`).emit('qris:payment-rejected', {
-            userId: data.userId,
-            transactionId: data.transactionId,
-            reason: data.reason || 'Pembayaran ditolak oleh admin'
-        });
     }
 };
 
@@ -369,7 +345,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 console.log('✅ Railway-optimized middleware configured');
 
 // ========================================
-// 🗄️ DATABASE SCHEMAS - Complete Production Ready
+// 🗄️ DATABASE SCHEMAS - Complete Production Ready (tanpa QRIS)
 // ========================================
 
 const userSchema = new mongoose.Schema({
@@ -476,33 +452,6 @@ const bankAccountSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Enhanced QRIS Schema dengan support upload gambar
-const qrisSettingsSchema = new mongoose.Schema({
-    isActive: { type: Boolean, default: false },
-    qrCodeImage: { type: String }, // Base64 image data
-    merchantName: { type: String, default: 'Gosok Angka Hoki' },
-    autoConfirm: { type: Boolean, default: false }, // Admin confirmation required
-    minAmount: { type: Number, default: 25000 },
-    maxAmount: { type: Number, default: 10000000 },
-    createdAt: { type: Date, default: Date.now },
-    lastUpdated: { type: Date, default: Date.now }
-});
-
-// Enhanced QRIS Transaction Schema
-const qrisTransactionSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    transactionId: { type: String, required: true, unique: true, index: true },
-    amount: { type: Number, required: true },
-    tokenQuantity: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'expired'], default: 'pending', index: true },
-    paymentDate: { type: Date },
-    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
-    approvalDate: { type: Date },
-    rejectionReason: { type: String },
-    expiryDate: { type: Date, default: () => new Date(Date.now() + 30 * 60 * 1000) }, // 30 minutes
-    createdAt: { type: Date, default: Date.now, index: true }
-});
-
 // Create Models
 const User = mongoose.model('User', userSchema);
 const Admin = mongoose.model('Admin', adminSchema);
@@ -512,8 +461,6 @@ const Winner = mongoose.model('Winner', winnerSchema);
 const GameSettings = mongoose.model('GameSettings', gameSettingsSchema);
 const TokenPurchase = mongoose.model('TokenPurchase', tokenPurchaseSchema);
 const BankAccount = mongoose.model('BankAccount', bankAccountSchema);
-const QRISSettings = mongoose.model('QRISSettings', qrisSettingsSchema);
-const QRISTransaction = mongoose.model('QRISTransaction', qrisTransactionSchema);
 
 console.log('✅ Database schemas configured for Railway');
 
@@ -652,7 +599,7 @@ app.get('/api/health', (req, res) => {
     const healthData = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '7.1.0-railway-qris-enhanced',
+        version: '7.1.0-railway-no-qris',
         uptime: process.uptime(),
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
         database: mongoose.connection.readyState === 1 ? 'connected' : 'connecting',
@@ -668,34 +615,28 @@ app.get('/api/health', (req, res) => {
 
 app.get('/', (req, res) => {
     res.json({
-        message: '🎯 Gosok Angka Backend - Railway Complete v7.1',
-        version: '7.1.0-railway-qris-enhanced',
-        status: 'Railway Production Ready - ALL FEATURES WORKING + QRIS ENHANCED',
+        message: '🎯 Gosok Angka Backend - Railway Complete v7.1 (No QRIS)',
+        version: '7.1.0-railway-no-qris',
+        status: 'Railway Production Ready - ALL FEATURES WORKING (tanpa QRIS)',
         health: 'OK',
         timestamp: new Date().toISOString(),
         database: mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting',
         features: {
             adminPanel: 'Complete & Functional',
-            qrisPayment: 'Enhanced with Better Validation & QR Upload',
+            bankTransfer: 'Available',
             realTimeSync: true,
             railwayOptimized: true,
             healthCheck: true,
-            fileUpload: 'Enhanced & Fully Working',
+            fileUpload: 'Available',
             allEndpoints: 'Complete & Tested'
         },
-        enhancements: {
-            qrisUpload: 'Enhanced File Validation',
-            qrisSettings: 'Better Error Handling',
-            publicEndpoints: 'Improved Responses',
-            security: 'Enhanced Validation'
-        },
+        note: 'QRIS payment telah dihapus untuk stabilitas',
         endpoints: {
             health: '/health',
             admin: '/api/admin/*',
             user: '/api/user/*',
             game: '/api/game/*',
-            public: '/api/public/*',
-            payment: '/api/payment/*'
+            public: '/api/public/*'
         }
     });
 });
@@ -990,7 +931,6 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, async 
             todayWinners, 
             totalPrizesResult, 
             pendingPurchases,
-            qrisTransactions,
             activeUsers
         ] = await Promise.all([
             User.countDocuments(),
@@ -1011,7 +951,6 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, async 
                 }}
             ]),
             TokenPurchase.countDocuments({ paymentStatus: 'pending' }),
-            QRISTransaction.countDocuments({ status: 'pending' }),
             User.countDocuments({ 
                 lastActiveDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
             })
@@ -1023,7 +962,6 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, async 
             todayWinners,
             totalPrizes: totalPrizesResult[0]?.total || 0,
             pendingPurchases,
-            pendingQRIS: qrisTransactions,
             activeUsers,
             systemHealth: {
                 memoryUsage: process.memoryUsage(),
@@ -1703,9 +1641,9 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
         const memoryUsage = process.memoryUsage();
         
         const systemStatus = {
-            version: '7.1.0-railway-qris-enhanced',
+            version: '7.1.0-railway-no-qris',
             environment: process.env.NODE_ENV || 'production',
-            deployment: 'Railway Complete & QRIS Enhanced',
+            deployment: 'Railway Complete (No QRIS)',
             uptime: {
                 seconds: process.uptime(),
                 formatted: new Date(process.uptime() * 1000).toISOString().substr(11, 8)
@@ -1721,7 +1659,7 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
                 name: mongoose.connection.name
             },
             socketConnections: io.engine.clientsCount || 0,
-            railwayStatus: 'Production Ready - ALL FEATURES + QRIS ENHANCED',
+            railwayStatus: 'Production Ready - ALL FEATURES (tanpa QRIS)',
             healthEndpoint: 'Available at /health',
             timestamp: new Date().toISOString()
         };
@@ -1817,280 +1755,6 @@ app.delete('/api/admin/bank-accounts/:accountId', verifyToken, verifyAdmin, admi
         res.json({ message: 'Bank account berhasil dihapus' });
     } catch (error) {
         logger.error('Delete bank account error:', error);
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
-});
-
-// ========================================
-// 💰 ENHANCED QRIS MANAGEMENT - v7.1 ENHANCED
-// ========================================
-
-// Get QRIS Settings untuk Admin Panel
-app.get('/api/admin/qris-settings', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        let qrisSettings = await QRISSettings.findOne();
-        
-        if (!qrisSettings) {
-            qrisSettings = new QRISSettings({
-                isActive: false,
-                merchantName: 'Gosok Angka Hoki',
-                autoConfirm: false,
-                minAmount: 25000,
-                maxAmount: 10000000
-            });
-            await qrisSettings.save();
-        }
-        
-        res.json(qrisSettings);
-    } catch (error) {
-        logger.error('Get QRIS settings error:', error);
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
-});
-
-// ENHANCED QRIS Settings Update dengan Better Validation
-app.put('/api/admin/qris-settings', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        const updateData = { 
-            ...req.body, 
-            lastUpdated: new Date() 
-        };
-        
-        // Validate QR Code image if provided
-        if (updateData.qrCodeImage) {
-            if (!updateData.qrCodeImage.startsWith('data:image/')) {
-                return res.status(400).json({ error: 'Format QR Code image tidak valid' });
-            }
-            
-            // Check base64 size
-            if (updateData.qrCodeImage.length > 10 * 1024 * 1024) {
-                return res.status(400).json({ error: 'QR Code image terlalu besar' });
-            }
-        }
-        
-        // Validate amounts
-        if (updateData.minAmount && updateData.maxAmount) {
-            if (updateData.minAmount >= updateData.maxAmount) {
-                return res.status(400).json({ error: 'Minimum amount harus lebih kecil dari maximum amount' });
-            }
-        }
-        
-        const qrisSettings = await QRISSettings.findOneAndUpdate(
-            {},
-            updateData,
-            { new: true, upsert: true }
-        );
-        
-        // Broadcast update to all clients
-        socketManager.broadcastSettingsUpdate({
-            type: 'qris_updated',
-            settings: qrisSettings,
-            message: 'QRIS settings updated'
-        });
-        
-        logger.info('QRIS settings updated successfully', {
-            isActive: qrisSettings.isActive,
-            hasQRImage: !!qrisSettings.qrCodeImage,
-            merchant: qrisSettings.merchantName
-        });
-        
-        res.json({
-            success: true,
-            message: 'QRIS settings berhasil diupdate',
-            data: qrisSettings
-        });
-    } catch (error) {
-        logger.error('Update QRIS settings error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Server error: ' + error.message 
-        });
-    }
-});
-
-// ENHANCED File Upload untuk QR Code dengan Better Validation
-app.post('/api/admin/upload', verifyToken, verifyAdmin, upload.single('file'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'Tidak ada file yang diupload' });
-        }
-        
-        // Validate image type more strictly
-        if (!req.file.mimetype.startsWith('image/')) {
-            return res.status(400).json({ error: 'File harus berupa gambar (PNG, JPG, JPEG)' });
-        }
-        
-        // Validate file size (max 5MB)
-        if (req.file.size > 5 * 1024 * 1024) {
-            return res.status(400).json({ error: 'Ukuran file maksimal 5MB' });
-        }
-        
-        // Create base64 with proper format
-        const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-        
-        // Validate base64 length to prevent issues
-        if (base64Image.length > 10 * 1024 * 1024) { // 10MB base64 limit
-            return res.status(400).json({ error: 'File terlalu besar setelah konversi base64' });
-        }
-        
-        logger.info(`QR Code uploaded successfully: Size ${req.file.size} bytes, Type: ${req.file.mimetype}`);
-        
-        res.json({
-            success: true,
-            message: 'QR Code berhasil diupload',
-            imageData: base64Image,
-            fileName: req.file.originalname,
-            size: req.file.size,
-            mimeType: req.file.mimetype,
-            uploadedAt: new Date().toISOString()
-        });
-    } catch (error) {
-        logger.error('QR Code upload error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Upload gagal: ' + error.message 
-        });
-    }
-});
-
-// QRIS Transaction Management untuk Admin Panel
-app.get('/api/admin/qris-transactions', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        const { page = 1, limit = 20, status = 'all' } = req.query;
-        
-        let query = {};
-        if (status !== 'all') {
-            query.status = status;
-        }
-        
-        const transactions = await QRISTransaction.find(query)
-            .populate('userId', 'name email phoneNumber')
-            .populate('adminId', 'name username')
-            .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
-            
-        const total = await QRISTransaction.countDocuments(query);
-        
-        res.json({
-            transactions,
-            total,
-            page: parseInt(page),
-            limit: parseInt(limit),
-            totalPages: Math.ceil(total / limit)
-        });
-    } catch (error) {
-        logger.error('Get QRIS transactions error:', error);
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
-});
-
-app.put('/api/admin/qris-transactions/:transactionId/approve', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        const { transactionId } = req.params;
-        
-        const transaction = await QRISTransaction.findById(transactionId).populate('userId');
-        if (!transaction) {
-            return res.status(404).json({ error: 'Transaction tidak ditemukan' });
-        }
-        
-        if (transaction.status !== 'pending') {
-            return res.status(400).json({ error: 'Transaction sudah diproses' });
-        }
-        
-        const user = await User.findById(transaction.userId._id);
-        if (!user) {
-            return res.status(404).json({ error: 'User tidak ditemukan' });
-        }
-        
-        // Update transaction
-        transaction.status = 'approved';
-        transaction.adminId = req.userId;
-        transaction.approvalDate = new Date();
-        await transaction.save();
-        
-        // Add tokens to user
-        user.paidScratchesRemaining = (user.paidScratchesRemaining || 0) + transaction.tokenQuantity;
-        user.totalPurchasedScratches = (user.totalPurchasedScratches || 0) + transaction.tokenQuantity;
-        user.totalSpent = (user.totalSpent || 0) + transaction.amount;
-        await user.save();
-        
-        // Create token purchase record
-        const tokenPurchase = new TokenPurchase({
-            userId: user._id,
-            adminId: req.userId,
-            quantity: transaction.tokenQuantity,
-            pricePerToken: Math.round(transaction.amount / transaction.tokenQuantity),
-            totalAmount: transaction.amount,
-            paymentStatus: 'completed',
-            paymentMethod: 'qris',
-            notes: `QRIS Payment - Transaction ID: ${transaction.transactionId}`,
-            completedDate: new Date()
-        });
-        await tokenPurchase.save();
-        
-        // Broadcast real-time updates
-        socketManager.broadcastQRISPayment({
-            userId: user._id,
-            transactionId: transaction.transactionId,
-            amount: transaction.amount,
-            quantity: transaction.tokenQuantity,
-            newBalance: {
-                free: user.freeScratchesRemaining || 0,
-                paid: user.paidScratchesRemaining,
-                total: (user.freeScratchesRemaining || 0) + user.paidScratchesRemaining
-            }
-        });
-        
-        logger.info(`QRIS payment approved by admin: ${transaction.tokenQuantity} tokens for ${user.name}`);
-        
-        res.json({
-            message: 'QRIS payment berhasil diapprove',
-            transactionId: transaction.transactionId,
-            tokensAdded: transaction.tokenQuantity
-        });
-    } catch (error) {
-        logger.error('Approve QRIS payment error:', error);
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
-});
-
-app.put('/api/admin/qris-transactions/:transactionId/reject', verifyToken, verifyAdmin, adminRateLimit, async (req, res) => {
-    try {
-        const { transactionId } = req.params;
-        const { reason } = req.body;
-        
-        const transaction = await QRISTransaction.findById(transactionId).populate('userId');
-        if (!transaction) {
-            return res.status(404).json({ error: 'Transaction tidak ditemukan' });
-        }
-        
-        if (transaction.status !== 'pending') {
-            return res.status(400).json({ error: 'Transaction sudah diproses' });
-        }
-        
-        // Update transaction
-        transaction.status = 'rejected';
-        transaction.adminId = req.userId;
-        transaction.rejectionReason = reason || 'Ditolak oleh admin';
-        await transaction.save();
-        
-        // Notify user
-        socketManager.rejectQRISPayment({
-            userId: transaction.userId._id,
-            transactionId: transaction.transactionId,
-            reason: reason || 'Pembayaran ditolak oleh admin'
-        });
-        
-        logger.info(`QRIS payment rejected by admin: ${transaction.transactionId}`);
-        
-        res.json({
-            message: 'QRIS payment berhasil ditolak',
-            transactionId: transaction.transactionId,
-            reason: reason || 'Ditolak oleh admin'
-        });
-    } catch (error) {
-        logger.error('Reject QRIS payment error:', error);
         res.status(500).json({ error: 'Server error: ' + error.message });
     }
 });
@@ -2448,88 +2112,7 @@ app.post('/api/game/scratch', verifyToken, async (req, res) => {
 });
 
 // ========================================
-// 💳 PAYMENT ROUTES - QRIS Support dengan Admin Verification
-// ========================================
-
-app.post('/api/payment/qris/notify', verifyToken, async (req, res) => {
-    try {
-        const { transactionId, amount } = req.body;
-        
-        if (!transactionId || !amount) {
-            return res.status(400).json({ error: 'Transaction ID dan amount diperlukan' });
-        }
-        
-        // Check if transaction already exists
-        const existingTransaction = await QRISTransaction.findOne({ transactionId });
-        if (existingTransaction) {
-            return res.status(400).json({ error: 'Transaction ID sudah pernah digunakan' });
-        }
-        
-        const user = await User.findById(req.userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User tidak ditemukan' });
-        }
-        
-        const settings = await GameSettings.findOne();
-        const qrisSettings = await QRISSettings.findOne();
-        
-        if (!qrisSettings || !qrisSettings.isActive) {
-            return res.status(400).json({ error: 'QRIS payment tidak aktif' });
-        }
-        
-        const pricePerToken = settings?.scratchTokenPrice || 25000;
-        const tokenQuantity = Math.floor(amount / pricePerToken);
-        
-        if (tokenQuantity < 1) {
-            return res.status(400).json({ error: `Minimum pembayaran Rp${pricePerToken.toLocaleString('id-ID')} untuk 1 token` });
-        }
-        
-        if (amount < qrisSettings.minAmount || amount > qrisSettings.maxAmount) {
-            return res.status(400).json({ 
-                error: `Jumlah pembayaran harus antara Rp${qrisSettings.minAmount.toLocaleString('id-ID')} - Rp${qrisSettings.maxAmount.toLocaleString('id-ID')}` 
-            });
-        }
-        
-        // Create QRIS transaction untuk admin verification
-        const qrisTransaction = new QRISTransaction({
-            userId: req.userId,
-            transactionId,
-            amount,
-            tokenQuantity,
-            status: 'pending' // Pending admin approval
-        });
-        await qrisTransaction.save();
-        
-        // Notify admin tentang pembayaran QRIS
-        socketManager.notifyQRISPending({
-            transactionId,
-            userId: req.userId,
-            userName: user.name,
-            userEmail: user.email,
-            userPhone: user.phoneNumber,
-            amount,
-            tokenQuantity,
-            timestamp: new Date()
-        });
-        
-        logger.info(`QRIS payment notification sent to admin: ${tokenQuantity} tokens for ${user.name}`);
-        
-        res.json({
-            message: 'Notifikasi pembayaran QRIS berhasil dikirim ke admin',
-            transactionId,
-            amount,
-            tokenQuantity,
-            status: 'pending_admin_approval',
-            estimatedTime: '5-30 menit'
-        });
-    } catch (error) {
-        logger.error('QRIS notification error:', error);
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
-});
-
-// ========================================
-// 🌐 PUBLIC ROUTES - Complete dengan Enhanced QRIS
+// 🌐 PUBLIC ROUTES - Complete (tanpa QRIS)
 // ========================================
 
 app.get('/api/public/prizes', async (req, res) => {
@@ -2573,52 +2156,6 @@ app.get('/api/public/game-settings', async (req, res) => {
     }
 });
 
-// ENHANCED Public QRIS endpoint dengan Better Error Handling
-app.get('/api/public/qris-settings', async (req, res) => {
-    try {
-        const qrisSettings = await QRISSettings.findOne();
-        
-        if (!qrisSettings) {
-            return res.json({
-                isActive: false,
-                message: 'QRIS belum dikonfigurasi',
-                qrCodeImage: null,
-                merchantName: 'Gosok Angka Hoki',
-                autoConfirm: false,
-                minAmount: 25000,
-                maxAmount: 10000000
-            });
-        }
-        
-        // Return all necessary data for frontend
-        const responseData = {
-            isActive: qrisSettings.isActive || false,
-            qrCodeImage: qrisSettings.qrCodeImage || null,
-            merchantName: qrisSettings.merchantName || 'Gosok Angka Hoki',
-            autoConfirm: qrisSettings.autoConfirm || false,
-            minAmount: qrisSettings.minAmount || 25000,
-            maxAmount: qrisSettings.maxAmount || 10000000,
-            lastUpdated: qrisSettings.lastUpdated
-        };
-        
-        // Log for debugging
-        logger.info('Public QRIS settings requested', {
-            isActive: responseData.isActive,
-            hasQRImage: !!responseData.qrCodeImage,
-            imageSize: responseData.qrCodeImage ? responseData.qrCodeImage.length : 0
-        });
-        
-        res.json(responseData);
-    } catch (error) {
-        logger.error('Get public QRIS settings error:', error);
-        res.status(500).json({ 
-            isActive: false,
-            error: 'Server error',
-            message: 'Gagal memuat QRIS settings'
-        });
-    }
-});
-
 app.get('/api/public/bank-account', async (req, res) => {
     try {
         const account = await BankAccount.findOne({ isActive: true });
@@ -2636,7 +2173,7 @@ app.get('/api/public/bank-account', async (req, res) => {
 });
 
 // ========================================
-// 💾 DATABASE INITIALIZATION - Railway Ready
+// 💾 DATABASE INITIALIZATION - Railway Ready (tanpa QRIS)
 // ========================================
 
 async function createDefaultAdmin() {
@@ -2775,31 +2312,6 @@ async function createDefaultBankAccount() {
     }
 }
 
-async function createDefaultQRISSettings() {
-    try {
-        const qrisExists = await QRISSettings.findOne();
-        
-        if (!qrisExists) {
-            // Default QR Code dari gambar yang diupload
-            const defaultQRISImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAANlBMVEX///8AAADZ2dnJycn6+vri4uLy8vKysrLr6+v39/fR0dGmpqbAwMCQkJA+Pj6cnJxeXl5tbW3jCL/EAAABbUlEQVR4nO3dwQ3CMBBFUZvAEkiVyP1XigCXQI5HYjWYf8+5wBsOb7cFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgR67r6t/fP3jnOI7+/f2Ddz7Psz/wDt7Z933/wz94Z9u2/sA7eOc4jv7AO3jnOI7+wDt4Z9u2/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/sA7eGfbtv7AO3jnOI7+wDt4Z9/3/oGfeFwRdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgC+sQa1YV8P6AAAAABJRU5ErkJggg==';
-            
-            const defaultQRIS = new QRISSettings({
-                isActive: true, // Aktifkan QRIS by default
-                qrCodeImage: defaultQRISImage, // QR Code default
-                merchantName: 'Gosok Angka Hoki',
-                autoConfirm: false, // Require admin confirmation
-                minAmount: 25000,
-                maxAmount: 10000000
-            });
-            
-            await defaultQRIS.save();
-            console.log('✅ Default QRIS settings created with QR Code');
-        }
-    } catch (error) {
-        console.error('❌ Error creating default QRIS settings:', error);
-    }
-}
-
 async function initializeDatabase() {
     try {
         console.log('🚀 Starting Railway database initialization...');
@@ -2827,7 +2339,6 @@ async function initializeDatabase() {
         await createDefaultSettings();
         await createSamplePrizes();
         await createDefaultBankAccount();
-        await createDefaultQRISSettings();
         
         console.log('🎉 Railway database initialization completed!');
         logger.info('🎉 Railway database initialization completed!');
@@ -2904,7 +2415,7 @@ app.use((req, res) => {
     res.status(404).json({ 
         error: 'Endpoint not found',
         path: req.path,
-        version: '7.1.0-railway-qris-enhanced'
+        version: '7.1.0-railway-no-qris'
     });
 });
 
@@ -2920,12 +2431,12 @@ app.use((err, req, res, next) => {
     res.status(status).json({ 
         error: message,
         timestamp: new Date().toISOString(),
-        version: '7.1.0-railway-qris-enhanced'
+        version: '7.1.0-railway-no-qris'
     });
 });
 
 // ========================================
-// 🚀 START RAILWAY SERVER - PRODUCTION ENHANCED v7.1
+// 🚀 START RAILWAY SERVER - PRODUCTION v7.1 (No QRIS)
 // ========================================
 
 const PORT = process.env.PORT || 5000;
@@ -2933,29 +2444,25 @@ const HOST = '0.0.0.0'; // Railway requirement
 
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY ENHANCED v7.1');
+    console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.1 (No QRIS)');
     console.log('========================================');
     console.log(`✅ Server running on ${HOST}:${PORT}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'production'}`);
     console.log(`📡 Railway URL: ${process.env.RAILWAY_PUBLIC_DOMAIN || 'gosokangka-backend-production-e9fa.up.railway.app'}`);
-    console.log(`🔌 Socket.IO: Enhanced with QRIS Admin Panel Support`);
+    console.log(`🔌 Socket.IO: Enhanced for Admin Panel`);
     console.log(`📊 Database: MongoDB Atlas Complete`);
     console.log(`🔐 Security: Production ready`);
-    console.log(`💰 Admin Panel: 100% Compatible with ENHANCED QRIS`);
+    console.log(`💰 Admin Panel: 100% Compatible (tanpa QRIS)`);
     console.log(`❤️ Health Check: /health (Railway optimized)`);
     console.log(`👤 Default Admin: admin / yusrizal1993`);
     console.log('========================================');
-    console.log('🎉 ENHANCED FEATURES v7.1:');
+    console.log('🎉 FEATURES v7.1 (No QRIS):');
     console.log('   ✅ Health check optimized for Railway');
     console.log('   ✅ CORS configured for all domains');
     console.log('   ✅ Database connection robust & stable');
     console.log('   ✅ ALL admin endpoints 100% working');
     console.log('   ✅ Socket.IO real-time sync perfect');
-    console.log('   ✅ QRIS payment ENHANCED with better validation');
-    console.log('   ✅ QR upload with ENHANCED file validation');
-    console.log('   ✅ ENHANCED public QRIS endpoint');
-    console.log('   ✅ Better error handling & responses');
-    console.log('   ✅ QRIS admin verification system enhanced');
+    console.log('   ✅ Bank transfer payment available');
     console.log('   ✅ All user endpoints complete');
     console.log('   ✅ Game engine perfect');
     console.log('   ✅ Prize management complete');
@@ -2964,29 +2471,30 @@ server.listen(PORT, HOST, async () => {
     console.log('   ✅ Enhanced error handling & logging');
     console.log('   ✅ Rate limiting active');
     console.log('   ✅ Security headers enabled');
+    console.log('   ❌ QRIS payment removed untuk stability');
     console.log('========================================');
-    console.log('💎 STATUS: PRODUCTION READY - ALL FEATURES + QRIS ENHANCED');
+    console.log('💎 STATUS: PRODUCTION READY - ALL FEATURES (tanpa QRIS)');
     console.log('🔗 Frontend: Ready for gosokangkahoki.com');
     console.log('📱 Mobile: Fully optimized');
     console.log('🚀 Performance: Enhanced & optimized');
-    console.log('🎯 Admin Panel: 100% Compatible with QRIS Enhanced');
-    console.log('📱 QRIS: ENHANCED dengan Better Validation & Error Handling');
+    console.log('🎯 Admin Panel: 100% Compatible');
+    console.log('💳 Payment: Bank Transfer Available');
     console.log('========================================');
     
     // Initialize database
-    console.log('🔧 Starting enhanced database initialization...');
+    console.log('🔧 Starting database initialization...');
     await initializeDatabase();
     
-    logger.info('🚀 Railway server v7.1 started successfully - ALL FEATURES + QRIS ENHANCED', {
+    logger.info('🚀 Railway server v7.1 started successfully - ALL FEATURES (tanpa QRIS)', {
         port: PORT,
         host: HOST,
-        version: '7.1.0-railway-qris-enhanced',
+        version: '7.1.0-railway-no-qris',
         database: 'MongoDB Atlas Ready',
         admin: 'admin/yusrizal1993',
-        qris: 'ENHANCED with Better Validation',
-        adminPanel: '100% Compatible with Enhanced QRIS',
-        status: 'PRODUCTION READY - ALL FEATURES + QRIS ENHANCED'
+        adminPanel: '100% Compatible',
+        qris: 'Removed for stability',
+        status: 'PRODUCTION READY - ALL FEATURES (tanpa QRIS)'
     });
 });
 
-console.log('✅ server.js v7.1 - Railway Production Enhanced - QRIS ENHANCED WITH BETTER VALIDATION!');
+console.log('✅ server.js v7.1 - Railway Production (No QRIS) - Clean & Stable!');
