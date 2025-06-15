@@ -2872,6 +2872,21 @@ app.post('/api/payment/qris-request', verifyToken, async (req, res) => {
 });
 
 
+
+// === QRIS Image Endpoint ===
+const path = require('path');
+const fs = require('fs');
+
+app.get('/api/payment/qris', (req, res) => {
+  const qrPath = path.join(__dirname, 'generate_winpay.png');
+  if (fs.existsSync(qrPath)) {
+    res.sendFile(qrPath);
+  } else {
+    res.status(404).json({ error: 'QRIS image not found' });
+  }
+});
+
+
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
     console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.4 COMPLETE + WIN RATE LOGIC FIXED');
