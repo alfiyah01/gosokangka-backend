@@ -55,9 +55,19 @@ function validateEnvironment() {
     }
     
     // MongoDB URI with Railway fallback
+    function validateEnvironment() {
+    console.log('🔧 Railway Environment Validation...');
+    
+    // Set JWT secret with Railway optimization
+    if (!process.env.JWT_SECRET) {
+        console.error('❌ JWT_SECRET environment variable is required');
+        process.exit(1);
+    }
+    
+    // MongoDB URI validation
     if (!process.env.MONGODB_URI) {
-        process.env.MONGODB_URI = 'mongodb+srv://yusrizal00:Yusrizal1993@gosokangka-db.5lqgepm.mongodb.net/gosokangka?retryWrites=true&w=majority&appName=gosokangka-db';
-        console.log('✅ Using MongoDB Atlas for Railway deployment');
+        console.error('❌ MONGODB_URI environment variable is required');
+        process.exit(1);
     }
     
     // Railway-specific environment
@@ -65,7 +75,6 @@ function validateEnvironment() {
     
     console.log('✅ Railway environment configured successfully');
 }
-
 validateEnvironment();
 
 // ========================================
