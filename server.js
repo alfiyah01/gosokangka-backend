@@ -48,33 +48,20 @@ const server = http.createServer(app);
 function validateEnvironment() {
     console.log('🔧 Railway Environment Validation...');
     
-    // Set JWT secret with Railway optimization
     if (!process.env.JWT_SECRET) {
         process.env.JWT_SECRET = 'gosokangka_ultra_secure_secret_key_2024_production_ready';
         console.log('✅ JWT_SECRET set for Railway');
     }
     
-    // MongoDB URI with Railway fallback
-    function validateEnvironment() {
-    console.log('🔧 Railway Environment Validation...');
-    
-    // Set JWT secret with Railway optimization
-    if (!process.env.JWT_SECRET) {
-        console.error('❌ JWT_SECRET environment variable is required');
-        process.exit(1);
-    }
-    
-    // MongoDB URI validation
     if (!process.env.MONGODB_URI) {
         console.error('❌ MONGODB_URI environment variable is required');
         process.exit(1);
     }
     
-    // Railway-specific environment
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-    
     console.log('✅ Railway environment configured successfully');
 }
+
 validateEnvironment();
 
 // ========================================
