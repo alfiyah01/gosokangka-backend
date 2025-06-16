@@ -1,47 +1,59 @@
 {
   "name": "gosokangka-backend",
-  "version": "6.0.0",
-  "description": "Gosok Angka Backend API - Perfect Complete System",
+  "version": "7.5.0",
+  "description": "Gosok Angka Backend API - Complete Production System with QRIS Payment",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "health": "curl -f http://localhost:$PORT/health || exit 1"
   },
   "keywords": [
     "nodejs",
-    "express",
+    "express", 
     "mongodb",
     "socket.io",
     "game",
-    "scratch-card"
+    "scratch-card",
+    "qris",
+    "payment",
+    "railway"
   ],
   "author": "Gosok Angka Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "mongoose": "^7.5.0",
+    "mongoose": "^8.0.3",
     "cors": "^2.8.5",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.7.2",
-    "express-rate-limit": "^6.10.0",
-    "helmet": "^7.0.0",
+    "socket.io": "^4.7.5",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-validator": "^7.0.1",
-    "winston": "^3.10.0",
+    "winston": "^3.11.0",
     "morgan": "^1.10.0",
     "compression": "^1.7.4",
     "multer": "^1.4.5-lts.1",
-    "node-cron": "^3.0.2",
+    "node-cron": "^3.0.3",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.2"
   },
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
-  }
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gosokangka/backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gosokangka/backend/issues"
+  },
+  "homepage": "https://github.com/gosokangka/backend#readme"
 }
