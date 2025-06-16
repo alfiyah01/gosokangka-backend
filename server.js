@@ -922,50 +922,109 @@ app.get('/', (req, res) => {
 
 app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (req, res) => {
     try {
+        // ========================================
+// 🔐 FIXED AUTH ROUTES - Registration dengan Email Support
+// ========================================
+
+// Enhanced validation untuk registration
+const validateUserRegistration = [
+    body('name').trim().notEmpty().isLength({ min: 2, max: 50 }).withMessage('Nama harus 2-50 karakter'),
+    body('email').optional().isEmail().normalizeEmail().withMessage('Format email tidak valid'),
+    body('phoneNumber').optional().matches(/^[0-9+\-\s()]+$/).withMessage('Format nomor HP tidak valid'),
+    body('password').isLength({ min: 6, max: 100 }).withMessage('Password minimal 6 karakter'),
+    handleValidationErrors
+];
+
+// Fixed registration endpoint
+app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (req, res) => {
+    try {
         const { name, email, password, phoneNumber } = req.body;
         
-        let userEmail = email;
-        let userPhone = phoneNumber;
+        console.log('📝 Registration attempt:', { name, email, phoneNumber, hasPassword: !!password });
         
-        if (email && !phoneNumber) {
-            userPhone = '0000000000';
+        // Validasi input
+        if (!name?.trim()) {
+            return res.status(400).json({ error: 'Nama lengkap harus diisi' });
         }
         
-        if (phoneNumber && !email) {
+        if (!password || password.length < 6) {
+            return res.status(400).json({ error: 'Password minimal 6 karakter' });
+        }
+        
+        // Tentukan email dan phone number
+        let userEmail = email?.trim();
+        let userPhone = phoneNumber?.trim();
+        
+        // Jika hanya email yang diisi
+        if (userEmail && !userPhone) {
+            // Generate unique phone number untuk email registration
             const timestamp = Date.now();
-            userEmail = `user${timestamp}@gosokangka.com`;
+            const random = Math.floor(Math.random() * 1000);
+            userPhone = `08${timestamp.toString().slice(-8)}${random}`.slice(0, 12);
         }
         
+        // Jika hanya phone yang diisi
+        if (userPhone && !userEmail) {
+            // Generate unique email untuk phone registration
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 8);
+            userEmail = `user${timestamp}_${random}@gosokangka.com`;
+        }
+        
+        // Jika keduanya kosong, error
         if (!userEmail || !userPhone) {
-            return res.status(400).json({ error: 'Email atau phone number harus diisi' });
+            return res.status(400).json({ error: 'Email atau nomor HP harus diisi' });
         }
         
+        // Normalisasi data
+        userEmail = userEmail.toLowerCase().trim();
+        userPhone = userPhone.replace(/\D/g, ''); // Remove non-digits
+        
+        console.log('📧 Processed data:', { userEmail, userPhone });
+        
+        // Check existing user dengan lebih specific
         const existingUser = await User.findOne({
             $or: [
-                { email: userEmail.toLowerCase() },
+                { email: userEmail },
                 { phoneNumber: userPhone }
             ]
         });
         
         if (existingUser) {
-            return res.status(400).json({ error: 'Email atau phone sudah terdaftar' });
+            if (existingUser.email === userEmail) {
+                return res.status(400).json({ error: 'Email sudah terdaftar, silakan gunakan email lain atau login' });
+            }
+            if (existingUser.phoneNumber === userPhone) {
+                return res.status(400).json({ error: 'Nomor HP sudah terdaftar, silakan gunakan nomor lain atau login' });
+            }
         }
         
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
         
+        // Create user dengan data yang bersih
         const user = new User({
-            name,
-            email: userEmail.toLowerCase(),
+            name: name.trim(),
+            email: userEmail,
             password: hashedPassword,
             phoneNumber: userPhone,
             freeScratchesRemaining: 1,
+            paidScratchesRemaining: 0,
             totalSpent: 0,
             totalWon: 0,
-            lastActiveDate: new Date()
+            scratchCount: 0,
+            winCount: 0,
+            status: 'active',
+            lastActiveDate: new Date(),
+            createdAt: new Date()
         });
         
+        // Save user
         await user.save();
         
+        console.log('✅ User created successfully:', user.email);
+        
+        // Broadcast new user event
         socketManager.broadcastNewUser({
             user: {
                 _id: user._id,
@@ -976,14 +1035,16 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
             }
         });
         
+        // Generate JWT token
         const token = jwt.sign(
             { userId: user._id, userType: 'user' },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
         
-        logger.info('User registered:', user.email);
+        logger.info('✅ User registered successfully:', user.email);
         
+        // Return success response
         res.status(201).json({
             message: 'Registration successful',
             token,
@@ -997,12 +1058,149 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
                 winCount: user.winCount,
                 status: user.status,
                 freeScratchesRemaining: user.freeScratchesRemaining,
-                paidScratchesRemaining: user.paidScratchesRemaining
+                paidScratchesRemaining: user.paidScratchesRemaining,
+                totalSpent: user.totalSpent,
+                totalWon: user.totalWon
             }
         });
+        
     } catch (error) {
-        logger.error('Register error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('❌ Registration error:', error);
+        logger.error('Registration error:', error);
+        
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            const message = field === 'email' ? 'Email sudah terdaftar' : 'Nomor HP sudah terdaftar';
+            return res.status(400).json({ error: message });
+        }
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ error: messages.join(', ') });
+        }
+        
+        res.status(500).json({ error: 'Server error, silakan coba lagi' });
+    }
+});
+
+// Enhanced login endpoint untuk handle email/phone
+app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) => {
+    try {
+        const { identifier, password, email } = req.body;
+        
+        const loginIdentifier = identifier || email;
+        console.log('🔐 Login attempt with identifier:', loginIdentifier);
+        
+        if (!loginIdentifier?.trim() || !password?.trim()) {
+            return res.status(400).json({ error: 'Email/HP dan password harus diisi' });
+        }
+        
+        let user;
+        
+        // Determine if identifier is email or phone
+        if (loginIdentifier.includes('@')) {
+            console.log('📧 Login with email');
+            user = await User.findOne({ 
+                email: loginIdentifier.toLowerCase().trim(),
+                status: { $ne: 'banned' }
+            });
+        } else {
+            console.log('📱 Login with phone');
+            // Clean phone number for search
+            const cleanPhone = loginIdentifier.replace(/\D/g, '');
+            user = await User.findOne({ 
+                $or: [
+                    { phoneNumber: cleanPhone },
+                    { phoneNumber: loginIdentifier.trim() }
+                ],
+                status: { $ne: 'banned' }
+            });
+        }
+        
+        if (!user) {
+            return res.status(400).json({ error: 'Email/HP atau password salah' });
+        }
+        
+        // Check account status
+        if (user.status === 'banned') {
+            return res.status(403).json({ error: 'Akun Anda telah diblokir, silakan hubungi admin' });
+        }
+        
+        if (user.status === 'suspended') {
+            return res.status(403).json({ error: 'Akun Anda disuspend sementara, silakan hubungi admin' });
+        }
+        
+        // Check if account is locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const remainingTime = Math.ceil((user.lockedUntil - new Date()) / 1000 / 60);
+            return res.status(423).json({ 
+                error: `Akun terkunci karena terlalu banyak percobaan login. Coba lagi dalam ${remainingTime} menit.` 
+            });
+        }
+        
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            // Increment login attempts
+            user.loginAttempts = (user.loginAttempts || 0) + 1;
+            
+            // Lock account after 5 failed attempts
+            if (user.loginAttempts >= 5) {
+                user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+                console.log('🔒 Account locked due to failed attempts:', user.email);
+            }
+            
+            await user.save();
+            return res.status(400).json({ error: 'Email/HP atau password salah' });
+        }
+        
+        // Reset login attempts on successful login
+        if (user.loginAttempts || user.lockedUntil) {
+            user.loginAttempts = 0;
+            user.lockedUntil = undefined;
+        }
+        
+        // Update login info
+        user.lastLoginDate = new Date();
+        user.lastActiveDate = new Date();
+        await user.save();
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { userId: user._id, userType: 'user' },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        
+        console.log('✅ User logged in successfully:', user.email);
+        logger.info('User logged in:', user.email);
+        
+        res.json({
+            message: 'Login successful',
+            token,
+            user: {
+                _id: user._id,
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                scratchCount: user.scratchCount || 0,
+                winCount: user.winCount || 0,
+                status: user.status,
+                lastScratchDate: user.lastScratchDate,
+                freeScratchesRemaining: user.freeScratchesRemaining || 0,
+                paidScratchesRemaining: user.paidScratchesRemaining || 0,
+                totalSpent: user.totalSpent || 0,
+                totalWon: user.totalWon || 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        logger.error('Login error:', error);
+        res.status(500).json({ error: 'Server error, silakan coba lagi' });
     }
 });
 
