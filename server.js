@@ -1739,7 +1739,7 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, adminRateLimit, async (req
         // Format phone numbers for display
         const formattedUsers = users.map(user => ({
             ...user.toObject(),
-            phoneNumber: formatPhoneNumber(user.phoneNumber)
+            phoneNumber: user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : 'No Phone'
         }));
         
         res.json({
