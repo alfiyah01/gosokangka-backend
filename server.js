@@ -4228,6 +4228,31 @@ app.get('/api/debug/registration-test', async (req, res) => {
     }
 });
 
+app.get('/api/debug/check-phone/:phone', async (req, res) => {
+    try {
+        const { phone } = req.params;
+        const normalizedPhone = normalizePhoneNumber(phone);
+        
+        const user = await User.findOne({
+            phoneNumber: { $in: [phone, normalizedPhone] }
+        });
+        
+        res.json({
+            phone: phone,
+            normalizedPhone: normalizedPhone,
+            exists: !!user,
+            userData: user ? {
+                _id: user._id,
+                name: user.name,
+                phoneNumber: user.phoneNumber,
+                createdAt: user.createdAt
+            } : null
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ========================================
 // ⚠️ ERROR HANDLING - Railway Production
 // ========================================
