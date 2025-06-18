@@ -1194,113 +1194,51 @@ app.get('/', (req, res) => {
 // 📱 UPDATED REGISTRATION - Phone Only
 app.post('/api/auth/register', async (req, res) => {
     try {
-      const { name, phoneNumber, password } = req.body;
-  
-      if (!name || !phoneNumber || !password) {
-        return res.status(400).json({ error: 'Nama, nomor HP, dan password wajib diisi' });
-      }
-  
-      // ✅ Gunakan normalization yang sama dengan frontend
-      const normalizedPhone = normalizePhoneNumber(phoneNumber);
-      
-      const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
-  
-      if (existingUser) {
-        return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
-      }
-  
-      const hashedPassword = await bcrypt.hash(password, 12);
-  
-      const newUser = new User({
-        name: name.trim(),
-        phoneNumber: normalizedPhone,
-        password: hashedPassword,
-        freeScratchesRemaining: 1
-      });
-  
-      await newUser.save();
-  
-      // ✅ JWT format yang benar
-      const token = jwt.sign(
-        { userId: newUser._id, userType: 'user' },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-  
-      logger.info('User registered:', formatPhoneNumber(newUser.phoneNumber));
-  
-      // ✅ Response format yang benar
-      res.status(201).json({
-        message: 'Registration successful',
-        token,
-        user: {
-          _id: newUser._id,
-          id: newUser._id,
-          name: newUser.name,
-          phoneNumber: formatPhoneNumber(newUser.phoneNumber),
-          scratchCount: 0,
-          winCount: 0,
-          status: 'active',
-          freeScratchesRemaining: 1,
-          paidScratchesRemaining: 0
+        const { name, phoneNumber, password } = req.body;
+
+        if (!name || !phoneNumber || !password) {
+            return res.status(400).json({ error: 'Nama, nomor HP, dan password wajib diisi' });
         }
-      });
-    } catch (error) {
-      logger.error('Register error:', error);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-        
+
+        const normalizedPhone = normalizePhoneNumber(phoneNumber);
+        const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+
         if (existingUser) {
             return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
         }
-        
+
         const hashedPassword = await bcrypt.hash(password, 12);
-        
-        const user = new User({
+
+        const newUser = new User({
             name: name.trim(),
             phoneNumber: normalizedPhone,
             password: hashedPassword,
-            freeScratchesRemaining: 1,
-            totalSpent: 0,
-            totalWon: 0,
-            lastActiveDate: new Date(),
-            isOnline: false,
-            lastOnlineDate: new Date()
+            freeScratchesRemaining: 1
         });
-        
-        await user.save();
-        
-        socketManager.broadcastNewUser({
-            user: {
-                _id: user._id,
-                name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
-                createdAt: user.createdAt
-            }
-        });
-        
+
+        await newUser.save();
+
         const token = jwt.sign(
-            { userId: user._id, userType: 'user' },
+            { userId: newUser._id, userType: 'user' },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
-        
-        logger.info('User registered:', formatPhoneNumber(user.phoneNumber));
-        
+
+        logger.info('User registered:', formatPhoneNumber(newUser.phoneNumber));
+
         res.status(201).json({
             message: 'Registration successful',
             token,
             user: {
-                _id: user._id,
-                id: user._id,
-                name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
-                scratchCount: user.scratchCount,
-                winCount: user.winCount,
-                status: user.status,
-                freeScratchesRemaining: user.freeScratchesRemaining,
-                paidScratchesRemaining: user.paidScratchesRemaining
+                _id: newUser._id,
+                id: newUser._id,
+                name: newUser.name,
+                phoneNumber: formatPhoneNumber(newUser.phoneNumber),
+                scratchCount: 0,
+                winCount: 0,
+                status: 'active',
+                freeScratchesRemaining: 1,
+                paidScratchesRemaining: 0
             }
         });
     } catch (error) {
