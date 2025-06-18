@@ -1202,26 +1202,31 @@ app.get('/', (req, res) => {
 // 🔐 AUTH ROUTES - Complete & Secure (PHONE ONLY)
 // ========================================
 
-// 📱 UPDATED REGISTRATION - Phone Only
+// 📱 UPDATED REGISTRATION - Email & Phone Support
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { name, identifier, password } = req.body;
 
-        if (!name || !phoneNumber || !password) {
-            return res.status(400).json({ error: 'Nama, nomor HP, dan password wajib diisi' });
+        // ✅ FIXED: Gunakan identifier bukan phoneNumber
+        if (!name || !identifier || !password) {
+            return res.status(400).json({ error: 'Nama, email/nomor HP, dan password wajib diisi' });
         }
 
+        // ✅ FIXED: Hanya satu deklarasi isEmail
         const isEmail = identifier.includes('@');
         const normalizedIdentifier = normalizeIdentifier(identifier);
+        
+        // Check if user already exists
         const existingUser = await User.findOne({ identifier: normalizedIdentifier });
-
         if (existingUser) {
-            return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
+            return res.status(400).json({ 
+                error: isEmail ? 'Email sudah terdaftar' : 'Nomor HP sudah terdaftar' 
+            });
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        const isEmail = identifier.includes('@');
+        // ✅ FIXED: Buat user dengan data yang benar
         const newUser = new User({
             name: name.trim(),
             identifier: normalizedIdentifier,
@@ -1240,7 +1245,7 @@ app.post('/api/auth/register', async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        logger.info('User registered:', formatPhoneNumber(newUser.phoneNumber));
+        logger.info('User registered:', isEmail ? newUser.email : formatPhoneNumber(newUser.phoneNumber));
 
         res.status(201).json({
             message: 'Registration successful',
@@ -1266,18 +1271,20 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 📱 UPDATED LOGIN - Phone Only
+// 📱 UPDATED LOGIN - Email & Phone Support
 app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) => {
     try {
         const { identifier, password } = req.body;
         
-        // Normalize identifier 
+        // ✅ FIXED: Normalize identifier 
         const isEmail = identifier.includes('@');
         const normalizedIdentifier = normalizeIdentifier(identifier);
         const user = await User.findOne({ identifier: normalizedIdentifier });
 
         if (!user) {
-            return res.status(400).json({ error: 'Nomor HP atau password salah' });
+            return res.status(400).json({ 
+                error: isEmail ? 'Email atau password salah' : 'Nomor HP atau password salah' 
+            });
         }
         
         if (user.lockedUntil && user.lockedUntil > new Date()) {
@@ -1296,7 +1303,9 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
             }
             
             await user.save();
-            return res.status(400).json({ error: 'Nomor HP atau password salah' });
+            return res.status(400).json({ 
+                error: isEmail ? 'Email atau password salah' : 'Nomor HP atau password salah' 
+            });
         }
         
         if (user.loginAttempts || user.lockedUntil) {
@@ -1314,7 +1323,8 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
             { expiresIn: '7d' }
         );
         
-        logger.info('User logged in:', formatPhoneNumber(user.phoneNumber));
+        logger.info('User logged in:', user.identifierType === 'phone' ? 
+            formatPhoneNumber(user.phoneNumber) : user.email);
         
         res.json({
             message: 'Login successful',
