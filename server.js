@@ -1193,37 +1193,63 @@ app.get('/', (req, res) => {
 
 // 📱 UPDATED REGISTRATION - Phone Only
 app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { name, phoneNumber, password } = req.body;
-
-    if (!name || !phoneNumber || !password) {
-      return res.status(400).json({ error: 'Nama, nomor, dan password wajib diisi' });
+    try {
+      const { name, phoneNumber, password } = req.body;
+  
+      if (!name || !phoneNumber || !password) {
+        return res.status(400).json({ error: 'Nama, nomor HP, dan password wajib diisi' });
+      }
+  
+      // ✅ Gunakan normalization yang sama dengan frontend
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      
+      const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+  
+      if (existingUser) {
+        return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
+      }
+  
+      const hashedPassword = await bcrypt.hash(password, 12);
+  
+      const newUser = new User({
+        name: name.trim(),
+        phoneNumber: normalizedPhone,
+        password: hashedPassword,
+        freeScratchesRemaining: 1
+      });
+  
+      await newUser.save();
+  
+      // ✅ JWT format yang benar
+      const token = jwt.sign(
+        { userId: newUser._id, userType: 'user' },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+  
+      logger.info('User registered:', formatPhoneNumber(newUser.phoneNumber));
+  
+      // ✅ Response format yang benar
+      res.status(201).json({
+        message: 'Registration successful',
+        token,
+        user: {
+          _id: newUser._id,
+          id: newUser._id,
+          name: newUser.name,
+          phoneNumber: formatPhoneNumber(newUser.phoneNumber),
+          scratchCount: 0,
+          winCount: 0,
+          status: 'active',
+          freeScratchesRemaining: 1,
+          paidScratchesRemaining: 0
+        }
+      });
+    } catch (error) {
+      logger.error('Register error:', error);
+      res.status(500).json({ error: 'Server error' });
     }
-
-    const normalizedPhone = phoneNumber.replace(/\D/g, '').replace(/^0/, '62');
-    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
-
-    if (existingUser) {
-      return res.status(409).json({ error: 'Nomor sudah terdaftar' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      name,
-      phoneNumber: normalizedPhone,
-      password: hashedPassword
-    });
-
-    await newUser.save();
-
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'secret-key');
-    res.status(201).json({ token, user: newUser });
-  } catch (error) {
-    console.error("REGISTER ERROR:", error);
-    res.status(500).json({ error: 'Terjadi kesalahan server: ' + error.message });
-  }
-});
+  });
         
         if (existingUser) {
             return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
