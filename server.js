@@ -1358,65 +1358,7 @@ app.post('/api/auth/register', authRateLimit, async (req, res) => {
         });
     }
 });
-        
-        // Generate JWT with error handling
-        let token;
-        try {
-            token = jwt.sign(
-                { userId: user._id, userType: 'user' },
-                process.env.JWT_SECRET,
-                { expiresIn: '7d' }
-            );
-            console.log('🎫 [REGISTER] JWT generated successfully');
-        } catch (jwtError) {
-            console.error('❌ [REGISTER] JWT generation error:', jwtError);
-            return res.status(500).json({ error: 'Error generating authentication token' });
-        }
-        
-        // Broadcast new user (with error handling)
-        try {
-            socketManager.broadcastNewUser({
-                user: {
-                    _id: user._id,
-                    name: user.name,
-                    phoneNumber: formatPhoneNumber(user.phoneNumber),
-                    createdAt: user.createdAt
-                }
-            });
-        } catch (socketError) {
-            console.warn('⚠️ [REGISTER] Socket broadcast failed (non-critical):', socketError.message);
-        }
-        
-        const responseData = {
-            message: 'Registration successful',
-            token,
-            user: {
-                _id: user._id,
-                id: user._id,
-                name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
-                scratchCount: user.scratchCount || 0,
-                winCount: user.winCount || 0,
-                status: user.status || 'active',
-                freeScratchesRemaining: user.freeScratchesRemaining || 0,
-                paidScratchesRemaining: user.paidScratchesRemaining || 0
-            }
-        };
 
-        console.log('✅ [REGISTER] Registration completed successfully for:', user.name);
-        
-        res.status(201).json(responseData);
-        
-    } catch (error) {
-        console.error('❌ [REGISTER] Unexpected error:', error);
-        
-        res.status(500).json({
-            error: 'Server error during registration',
-            message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
 
 // 🔧 REGISTRATION DEBUG ENDPOINT - Temporary
 app.post('/api/auth/register-simple', async (req, res) => {
