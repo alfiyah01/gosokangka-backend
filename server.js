@@ -1,14 +1,13 @@
 // ========================================
-// 🚀 GOSOK ANGKA BACKEND - RAILWAY v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX
+// 🚀 GOSOK ANGKA BACKEND - RAILWAY v7.6 PHONE ONLY + ONLINE TRACKING
 // ✅ ALL FEATURES + QRIS PAYMENT SYSTEM + COMPLETE ADMIN PANEL + PHONE ONLY REGISTRATION
 // 🔗 Backend URL: gosokangka-backend-production-e9fa.up.railway.app
 // 📊 DATABASE: MongoDB Atlas (gosokangka-db) - Complete Schema
 // 🎯 100% PRODUCTION READY dengan SEMUA FITUR + ADMIN PANEL ENDPOINTS
-// 🔧 FIXED CORS CONFIGURATION untuk Perfect Connection + HOTFIX
+// 🔧 FIXED CORS CONFIGURATION untuk Perfect Connection
 // 🏢 COMPLETE ADMIN PANEL ENDPOINTS - ALL FUNCTIONAL
 // 📱 PHONE ONLY REGISTRATION - No Email Required
 // 👥 REALTIME ONLINE USERS TRACKING
-// 🌐 CORS HOTFIX - Allow All Origins including NULL
 // ========================================
 
 require('dotenv').config();
@@ -473,16 +472,65 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 // ========================================
-// 🔄 SOCKET.IO - Enhanced CORS Configuration + Online Tracking + HOTFIX
+// 🔄 SOCKET.IO - Enhanced CORS Configuration + Online Tracking
 // ========================================
 
-// 🔄 SOCKET.IO HOTFIX - Allow All Origins
 const io = socketIO(server, {
     cors: {
-        origin: true, // Allow all origins
+        origin: function(origin, callback) {
+            console.log('🔍 Socket.IO CORS check for origin:', origin);
+            
+            // Allow no origin
+            if (!origin) {
+                console.log('✅ Socket.IO: No origin allowed');
+                return callback(null, true);
+            }
+            
+            // Check against same allowed origins as main CORS
+            const isAllowed = allowedOrigins.some(allowedOrigin => {
+                if (origin === allowedOrigin) return true;
+                
+                // Handle localhost development
+                if (process.env.NODE_ENV !== 'production') {
+                    try {
+                        const originUrl = new URL(origin);
+                        const allowedUrl = new URL(allowedOrigin);
+                        if (originUrl.hostname === allowedUrl.hostname) return true;
+                    } catch (e) {
+                        // Ignore URL parsing errors
+                    }
+                }
+                
+                return false;
+            });
+            
+            if (isAllowed) {
+                console.log('✅ Socket.IO origin allowed:', origin);
+                return callback(null, true);
+            }
+            
+            // Development fallback
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('🔓 Socket.IO development mode: allowing origin:', origin);
+                return callback(null, true);
+            }
+            
+            console.log('❌ Socket.IO origin rejected:', origin);
+            return callback(new Error('Socket.IO CORS policy violation'), false);
+        },
+        
         credentials: true,
         methods: ["GET", "POST"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Session-ID"],
+        
+        allowedHeaders: [
+            "Content-Type", 
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "X-Session-ID"
+        ],
+        
         transports: ['websocket', 'polling']
     },
     
@@ -494,8 +542,6 @@ const io = socketIO(server, {
     upgradeTimeout: 30000,
     maxHttpBufferSize: 1e6
 });
-
-console.log('✅ Socket.IO CORS hotfix applied - All origins allowed');
 
 // Socket Manager dengan QRIS Events + Online Tracking
 const socketManager = {
@@ -565,37 +611,7 @@ const socketManager = {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ========================================
-// 🚀 HOTFIX CORS - Allow All Origins including NULL
-// ========================================
-
-// Middleware CORS yang sangat permissive untuk fix error null origin
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    
-    console.log(`🌐 [CORS-HOTFIX] ${req.method} ${req.url} from origin:`, origin || 'no-origin');
-    
-    // Set CORS headers untuk allow semua origin
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH,HEAD');
-    res.header('Access-Control-Allow-Headers', 
-        'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, X-Session-ID');
-    res.header('Access-Control-Expose-Headers', 'Content-Length, X-Request-ID');
-    res.header('Access-Control-Max-Age', '86400');
-    
-    // Handle preflight OPTIONS request
-    if (req.method === 'OPTIONS') {
-        console.log('✅ [CORS-HOTFIX] Handling preflight OPTIONS request');
-        return res.status(200).end();
-    }
-    
-    next();
-});
-
-console.log('✅ HOTFIX CORS applied - All origins allowed including null');
-
-console.log('✅ Railway-optimized middleware configured with enhanced CORS + HOTFIX');
+console.log('✅ Railway-optimized middleware configured with enhanced CORS');
 
 // ========================================
 // 🗄️ DATABASE SCHEMAS - Complete Production Ready + QRIS + Online Tracking
@@ -1089,8 +1105,8 @@ app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix',
-        cors: 'Enhanced & Secure + HOTFIX'
+        version: '7.6.0-phone-only-online-tracking',
+        cors: 'Enhanced & Secure'
     });
 });
 
@@ -1098,16 +1114,15 @@ app.get('/api/health', (req, res) => {
     const healthData = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix',
+        version: '7.6.0-phone-only-online-tracking',
         uptime: process.uptime(),
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
         database: mongoose.connection.readyState === 1 ? 'connected' : 'connecting',
         environment: process.env.NODE_ENV || 'production',
         cors: {
-            status: 'Enhanced & Secure + HOTFIX',
+            status: 'Enhanced & Secure',
             allowedOrigins: allowedOrigins.length,
-            environment: process.env.NODE_ENV,
-            hotfixApplied: true
+            environment: process.env.NODE_ENV
         },
         features: {
             qrisPayment: 'Available',
@@ -1117,7 +1132,7 @@ app.get('/api/health', (req, res) => {
             dailyTokenDistribution: 'Available ✅',
             manualTokenAddition: 'Available ✅',
             winRateLogic: 'Fixed and properly controlled',
-            corsConfiguration: 'Enhanced & Secure + HOTFIX ✅',
+            corsConfiguration: 'Enhanced & Secure',
             adminPanelEndpoints: 'ALL FUNCTIONAL - LENGKAP 100%'
         }
     };
@@ -1131,17 +1146,16 @@ app.get('/api/health', (req, res) => {
 
 app.get('/', (req, res) => {
     res.json({
-        message: '🎯 Gosok Angka Backend - Railway v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX',
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix',
-        status: 'Railway Production Ready - PHONE ONLY REGISTRATION + REALTIME ONLINE USERS + CORS HOTFIX ✅',
+        message: '🎯 Gosok Angka Backend - Railway v7.6 PHONE ONLY + ONLINE TRACKING',
+        version: '7.6.0-phone-only-online-tracking',
+        status: 'Railway Production Ready - PHONE ONLY REGISTRATION + REALTIME ONLINE USERS ✅',
         health: 'OK',
         timestamp: new Date().toISOString(),
         database: mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting',
         cors: {
-            status: 'Enhanced & Secure + HOTFIX',
+            status: 'Enhanced & Secure',
             allowedOrigins: allowedOrigins.length,
-            socketIOCors: 'Configured + HOTFIX',
-            hotfixApplied: true
+            socketIOCors: 'Configured'
         },
         features: {
             adminPanel: 'Complete & 100% Functional ✅',
@@ -1157,10 +1171,10 @@ app.get('/', (req, res) => {
             fileUpload: 'Available',
             allEndpoints: 'Complete & Tested',
             winRateControlFixed: 'FIXED ✅',
-            corsConfigurationEnhanced: 'SECURE + HOTFIX ✅',
+            corsConfigurationEnhanced: 'SECURE ✅',
             adminEndpointsComplete: 'ALL FUNCTIONAL ✅'
         },
-        note: 'Registration hanya dengan nomor HP, tracking user online realtime, distribusi token harian otomatis, CORS HOTFIX applied',
+        note: 'Registration hanya dengan nomor HP, tracking user online realtime, distribusi token harian otomatis',
         endpoints: {
             health: '/health',
             admin: '/api/admin/* (ALL WORKING)',
@@ -1178,266 +1192,29 @@ app.get('/', (req, res) => {
 // ========================================
 
 // 📱 UPDATED REGISTRATION - Phone Only
-app.post('/api/auth/register', authRateLimit, async (req, res) => {
+app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (req, res) => {
     try {
-        console.log('🔧 [REGISTER] Request received:', {
-            body: req.body,
-            headers: {
-                origin: req.headers.origin,
-                'content-type': req.headers['content-type'],
-                'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
-            }
-        });
-
         const { name, password, phoneNumber } = req.body;
         
-        // Enhanced validation
-        if (!name || !password || !phoneNumber) {
-            console.log('❌ [REGISTER] Missing required fields');
-            return res.status(400).json({ 
-                error: 'Semua field harus diisi',
-                details: {
-                    name: !name ? 'required' : 'ok',
-                    password: !password ? 'required' : 'ok',
-                    phoneNumber: !phoneNumber ? 'required' : 'ok'
-                }
-            });
-        }
-
-        if (name.trim().length < 2) {
-            return res.status(400).json({ error: 'Nama minimal 2 karakter' });
-        }
-
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Password minimal 6 karakter' });
-        }
-
-        // Enhanced phone validation
-        let normalizedPhone;
-        try {
-            normalizedPhone = normalizePhoneNumber(phoneNumber);
-            console.log('📱 [REGISTER] Phone normalized:', phoneNumber, '->', normalizedPhone);
-        } catch (phoneError) {
-            console.error('❌ [REGISTER] Phone normalization error:', phoneError);
-            return res.status(400).json({ error: 'Format nomor HP tidak valid' });
-        }
-
-        // Validate normalized phone
-        if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
-            return res.status(400).json({ error: 'Nomor HP tidak valid (10-15 digit)' });
-        }
-
-        if (!normalizedPhone.startsWith('62')) {
-            return res.status(400).json({ error: 'Nomor HP harus format Indonesia (+62)' });
-        }
-
-        // Check database connection
-        if (mongoose.connection.readyState !== 1) {
-            console.error('❌ [REGISTER] Database not connected');
-            return res.status(500).json({ error: 'Database tidak terkoneksi, coba lagi sebentar' });
-        }
-
-        // Check existing user with better error handling
-        let existingUser;
-        try {
-            existingUser = await User.findOne({
-                phoneNumber: { $in: [phoneNumber, normalizedPhone] }
-            });
-            console.log('🔍 [REGISTER] Existing user check:', existingUser ? 'FOUND' : 'NOT_FOUND');
-        } catch (dbError) {
-            console.error('❌ [REGISTER] Database query error:', dbError);
-            return res.status(500).json({ error: 'Error checking existing user' });
-        }
+        // Normalize phone number
+        const normalizedPhone = normalizePhoneNumber(phoneNumber);
         
-        if (existingUser) {
-            console.log('❌ [REGISTER] Phone already registered');
-            return res.status(400).json({ error: 'Nomor HP sudah terdaftar. Silakan gunakan nomor lain atau login.' });
-        }
-        
-        // Hash password with error handling
-        let hashedPassword;
-        try {
-            hashedPassword = await bcrypt.hash(password, 12);
-            console.log('🔐 [REGISTER] Password hashed successfully');
-        } catch (hashError) {
-            console.error('❌ [REGISTER] Password hashing error:', hashError);
-            return res.status(500).json({ error: 'Error processing password' });
-        }
-        
-        // Create user with comprehensive error handling
-        const userData = {
-            name: name.trim(),
-            phoneNumber: normalizedPhone,
-            password: hashedPassword,
-            freeScratchesRemaining: 1,
-            paidScratchesRemaining: 0,
-            totalSpent: 0,
-            totalWon: 0,
-            lastActiveDate: new Date(),
-            isOnline: false,
-            lastOnlineDate: new Date(),
-            scratchCount: 0,
-            winCount: 0,
-            status: 'active'
-        };
-
-        let user;
-        try {
-            user = new User(userData);
-            await user.save();
-            console.log('✅ [REGISTER] User created successfully:', user._id);
-        } catch (saveError) {
-            console.error('❌ [REGISTER] User save error:', saveError);
-            
-            if (saveError.code === 11000) {
-                // Duplicate key error
-                return res.status(400).json({ error: 'Nomor HP sudah terdaftar (duplikasi)' });
-            }
-            
-            return res.status(500).json({ 
-                error: 'Error creating user account',
-                details: process.env.NODE_ENV === 'development' ? saveError.message : 'Please try again'
-            });
-        }
-        
-        // Generate JWT with error handling
-        let token;
-        try {
-            token = jwt.sign(
-                { userId: user._id, userType: 'user' },
-                process.env.JWT_SECRET,
-                { expiresIn: '7d' }
-            );
-            console.log('🎫 [REGISTER] JWT generated successfully');
-        } catch (jwtError) {
-            console.error('❌ [REGISTER] JWT generation error:', jwtError);
-            return res.status(500).json({ error: 'Error generating authentication token' });
-        }
-        
-        // Broadcast new user (with error handling)
-        try {
-            socketManager.broadcastNewUser({
-                user: {
-                    _id: user._id,
-                    name: user.name,
-                    phoneNumber: formatPhoneNumber(user.phoneNumber),
-                    createdAt: user.createdAt
-                }
-            });
-        } catch (socketError) {
-            console.warn('⚠️ [REGISTER] Socket broadcast failed (non-critical):', socketError.message);
-        }
-        
-        const responseData = {
-            message: 'Registration successful',
-            token,
-            user: {
-                _id: user._id,
-                id: user._id,
-                name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
-                scratchCount: user.scratchCount || 0,
-                winCount: user.winCount || 0,
-                status: user.status || 'active',
-                freeScratchesRemaining: user.freeScratchesRemaining || 0,
-                paidScratchesRemaining: user.paidScratchesRemaining || 0
-            }
-        };
-
-        console.log('✅ [REGISTER] Registration completed successfully for:', user.name);
-        
-        res.status(201).json(responseData);
-        
-    } catch (error) {
-        console.error('❌ [REGISTER] Unexpected error:', error);
-        
-        res.status(500).json({
-            error: 'Server error during registration',
-            message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-
-// 🔧 REGISTRATION DEBUG ENDPOINT - Temporary
-app.post('/api/auth/register-simple', async (req, res) => {
-    try {
-        console.log('🔧 [REGISTER] Request received:', {
-            body: req.body,
-            headers: {
-                origin: req.headers.origin,
-                'content-type': req.headers['content-type'],
-                'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
-            }
-        });
-        
-        const { name, password, phoneNumber } = req.body;
-        
-        // Basic validation
-        if (!name || !password || !phoneNumber) {
-            console.log('❌ [REGISTER] Missing required fields');
-            return res.status(400).json({ 
-                error: 'Semua field harus diisi',
-                details: {
-                    name: !name ? 'required' : 'ok',
-                    password: !password ? 'required' : 'ok',
-                    phoneNumber: !phoneNumber ? 'required' : 'ok'   
-                }
-            });
-        }
-        
-        if (name.trim().length < 2) {
-            return res.status(400).json({ error: 'Nama minimal 2 karakter' });
-        }
-
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Password minimal 6 karakter' });
-        }
-        
-        // Check database
-        if (mongoose.connection.readyState !== 1) {
-            console.error('❌ [REGISTER] Database not connected');
-            return res.status(500).json({ error: 'Database tidak terkoneksi, coba lagi sebentar' });
-        }
-        
-        // Phone normalization
-        let normalizedPhone;
-        try {
-            normalizedPhone = normalizePhoneNumber(phoneNumber);
-            console.log('📱 [REGISTER] Phone normalized:', phoneNumber, '->', normalizedPhone);
-        } catch (phoneError) {
-            console.error('❌ [REGISTER] Phone normalization error:', phoneError);
-            return res.status(400).json({ error: 'Format nomor HP tidak valid' });
-        }
-        
-        // Check existing user
+        // Check if phone number already exists
         const existingUser = await User.findOne({
             phoneNumber: { $in: [phoneNumber, normalizedPhone] }
         });
         
         if (existingUser) {
-            console.log('❌ [REGISTER] Phone already registered');
-            return res.status(400).json({ error: 'Nomor HP sudah terdaftar. Silakan gunakan nomor lain atau login.' });
+            return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
         }
         
-        // Hash password - FIXED SYNTAX
-        let hashedPassword;
-        try {
-            hashedPassword = await bcrypt.hash(password, 12);
-            console.log('🔐 [REGISTER] Password hashed successfully');
-        } catch (hashError) {
-            console.error('❌ [REGISTER] Password hashing error:', hashError);
-            return res.status(500).json({ error: 'Error processing password' });
-        }
+        const hashedPassword = await bcrypt.hash(password, 12);
         
-        // Create user
         const user = new User({
             name: name.trim(),
             phoneNumber: normalizedPhone,
             password: hashedPassword,
             freeScratchesRemaining: 1,
-            paidScratchesRemaining: 0,
             totalSpent: 0,
             totalWon: 0,
             lastActiveDate: new Date(),
@@ -1446,53 +1223,42 @@ app.post('/api/auth/register-simple', async (req, res) => {
         });
         
         await user.save();
-        console.log('✅ [DEBUG] User saved with ID:', user._id);
         
-        // Generate JWT
+        socketManager.broadcastNewUser({
+            user: {
+                _id: user._id,
+                name: user.name,
+                phoneNumber: formatPhoneNumber(user.phoneNumber),
+                createdAt: user.createdAt
+            }
+        });
+        
         const token = jwt.sign(
             { userId: user._id, userType: 'user' },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
-        console.log('🎫 [DEBUG] JWT generated successfully');
         
-        // NO SOCKET BROADCAST untuk avoid CORS error
-        console.log('⚠️ [DEBUG] Skipping socket broadcast to avoid CORS issues');
+        logger.info('User registered:', formatPhoneNumber(user.phoneNumber));
         
-        const response = {
-            message: 'Registration successful (debug mode)',
+        res.status(201).json({
+            message: 'Registration successful',
             token,
             user: {
                 _id: user._id,
                 id: user._id,
                 name: user.name,
-                phoneNumber: formatPhoneNumber ? formatPhoneNumber(user.phoneNumber) : user.phoneNumber,
-                scratchCount: user.scratchCount || 0,
-                winCount: user.winCount || 0,
-                status: user.status || 'active',
+                phoneNumber: formatPhoneNumber(user.phoneNumber),
+                scratchCount: user.scratchCount,
+                winCount: user.winCount,
+                status: user.status,
                 freeScratchesRemaining: user.freeScratchesRemaining,
                 paidScratchesRemaining: user.paidScratchesRemaining
-            },
-            debug: {
-                originalPhone: phoneNumber,
-                normalizedPhone: normalizedPhone,
-                corsHeaders: req.headers.origin ? 'HAS_ORIGIN' : 'NO_ORIGIN'
-            }
-        };
-        
-        console.log('✅ [DEBUG] Registration successful for:', user.name);
-        res.status(201).json(response);
-        
-    } catch (error) {
-        console.error('❌ [DEBUG] Registration error:', error);
-        res.status(500).json({
-            error: 'Server error',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
-            debug: {
-                errorType: error.name,
-                mongoError: error.code === 11000 ? 'DUPLICATE_KEY' : 'OTHER'
             }
         });
+    } catch (error) {
+        logger.error('Register error:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -1812,7 +1578,7 @@ app.get('/api/admin/test-auth', verifyToken, verifyAdmin, (req, res) => {
         message: 'Authentication valid', 
         adminId: req.userId,
         timestamp: new Date().toISOString(),
-        cors: 'Enhanced & Working + HOTFIX'
+        cors: 'Enhanced & Working'
     });
 });
 
@@ -1908,7 +1674,7 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, async 
                 memoryUsage: process.memoryUsage(),
                 uptime: process.uptime(),
                 socketConnections: io.engine.clientsCount || 0,
-                cors: 'Enhanced & Secure + HOTFIX'
+                cors: 'Enhanced & Secure'
             },
             analytics: {
                 winRate: todayScratches > 0 ? ((todayWinners / todayScratches) * 100).toFixed(2) : 0,
@@ -1919,8 +1685,7 @@ app.get('/api/admin/dashboard', verifyToken, verifyAdmin, adminRateLimit, async 
                 phoneOnlyRegistration: 'Active ✅',
                 onlineUserTracking: 'Active ✅',
                 dailyTokenDistribution: 'Available ✅',
-                manualTokenAddition: 'Available ✅',
-                corsHotfix: 'Applied ✅'
+                manualTokenAddition: 'Available ✅'
             }
         };
         
@@ -3261,7 +3026,7 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
     try {
         const systemStatus = {
             status: 'healthy',
-            version: '7.6.0-phone-only-online-tracking-cors-hotfix',
+            version: '7.6.0-phone-only-online-tracking',
             uptime: {
                 seconds: process.uptime(),
                 formatted: Math.floor(process.uptime() / 3600) + 'h ' + Math.floor((process.uptime() % 3600) / 60) + 'm'
@@ -3288,9 +3053,8 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
                 responseTime: Math.floor(Math.random() * 50) + 50 // Simulated response time
             },
             cors: {
-                status: 'Enhanced & Secure + HOTFIX',
-                allowedOrigins: allowedOrigins.length,
-                hotfixApplied: true
+                status: 'Enhanced & Secure',
+                allowedOrigins: allowedOrigins.length
             },
             features: {
                 phoneOnlyRegistration: 'Active ✅',
@@ -3300,8 +3064,7 @@ app.get('/api/admin/system-status', verifyToken, verifyAdmin, adminRateLimit, as
                 qrisPayment: 'Active',
                 bankTransfer: 'Active',
                 realTimeSync: 'Active',
-                socketIO: 'Connected',
-                corsHotfix: 'Applied ✅'
+                socketIO: 'Connected'
             },
             onlineUsers: getOnlineUsers()
         };
@@ -4029,7 +3792,7 @@ async function createDefaultBankAccount() {
 
 async function initializeDatabase() {
     try {
-        console.log('🚀 Starting Railway database initialization with PHONE ONLY + ONLINE TRACKING + CORS HOTFIX...');
+        console.log('🚀 Starting Railway database initialization with PHONE ONLY + ONLINE TRACKING...');
         
         let retries = 0;
         const maxRetries = 10;
@@ -4056,8 +3819,8 @@ async function initializeDatabase() {
         await createSamplePrizes();
         await createDefaultBankAccount();
         
-        console.log('🎉 Railway database initialization with PHONE ONLY + ONLINE TRACKING + CORS HOTFIX completed!');
-        logger.info('🎉 Railway database initialization with PHONE ONLY + ONLINE TRACKING + CORS HOTFIX completed!');
+        console.log('🎉 Railway database initialization with PHONE ONLY + ONLINE TRACKING completed!');
+        logger.info('🎉 Railway database initialization with PHONE ONLY + ONLINE TRACKING completed!');
     } catch (error) {
         logger.error('Database initialization error:', error);
     }
@@ -4172,7 +3935,7 @@ app.get('/api/debug/win-rate-test/:userId', verifyToken, verifyAdmin, async (req
 
 app.get('/api/debug/system-info', verifyToken, verifyAdmin, (req, res) => {
     res.json({
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix',
+        version: '7.6.0-phone-only-online-tracking',
         environment: process.env.NODE_ENV,
         uptime: process.uptime(),
         memory: process.memoryUsage(),
@@ -4181,8 +3944,7 @@ app.get('/api/debug/system-info', verifyToken, verifyAdmin, (req, res) => {
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
         cors: {
             allowedOrigins: allowedOrigins.length,
-            status: 'Enhanced & Secure + HOTFIX',
-            hotfixApplied: true
+            status: 'Enhanced & Secure'
         },
         features: {
             phoneOnlyRegistration: 'Active ✅',
@@ -4193,64 +3955,10 @@ app.get('/api/debug/system-info', verifyToken, verifyAdmin, (req, res) => {
             bankTransfer: 'Available',
             winRateLogic: 'Fixed',
             adminPanel: 'Complete & Functional',
-            realTimeSync: 'Active',
-            corsHotfix: 'Applied ✅'
+            realTimeSync: 'Active'
         },
         onlineUsers: getOnlineUsers()
     });
-});
-
-app.get('/api/debug/registration-test', async (req, res) => {
-    try {
-        const tests = {
-            database: mongoose.connection.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED',
-            collections: Object.keys(mongoose.connection.collections),
-            userCount: await User.countDocuments(),
-            phoneNormalizationTest: {
-                '08123456789': normalizePhoneNumber('08123456789'),
-                '8123456789': normalizePhoneNumber('8123456789'),
-                '628123456789': normalizePhoneNumber('628123456789')
-            },
-            jwtSecret: process.env.JWT_SECRET ? 'SET' : 'MISSING',
-            bcryptTest: await bcrypt.hash('test123', 12) ? 'WORKING' : 'FAILED'
-        };
-
-        res.json({
-            status: 'Registration system test',
-            timestamp: new Date().toISOString(),
-            tests
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: 'Test failed',
-            details: error.message
-        });
-    }
-});
-
-app.get('/api/debug/check-phone/:phone', async (req, res) => {
-    try {
-        const { phone } = req.params;
-        const normalizedPhone = normalizePhoneNumber(phone);
-        
-        const user = await User.findOne({
-            phoneNumber: { $in: [phone, normalizedPhone] }
-        });
-        
-        res.json({
-            phone: phone,
-            normalizedPhone: normalizedPhone,
-            exists: !!user,
-            userData: user ? {
-                _id: user._id,
-                name: user.name,
-                phoneNumber: user.phoneNumber,
-                createdAt: user.createdAt
-            } : null
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
 });
 
 // ========================================
@@ -4270,7 +3978,7 @@ app.use((req, res) => {
     res.status(404).json({ 
         error: 'Endpoint not found',
         path: req.path,
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix'
+        version: '7.6.0-phone-only-online-tracking'
     });
 });
 
@@ -4286,12 +3994,12 @@ app.use((err, req, res, next) => {
     res.status(status).json({ 
         error: message,
         timestamp: new Date().toISOString(),
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix'
+        version: '7.6.0-phone-only-online-tracking'
     });
 });
 
 // ========================================
-// 🚀 START RAILWAY SERVER - v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX
+// 🚀 START RAILWAY SERVER - v7.6 PHONE ONLY + ONLINE TRACKING
 // ========================================
 
 const PORT = process.env.PORT || 5000;
@@ -4299,34 +4007,30 @@ const HOST = '0.0.0.0';
 
 server.listen(PORT, HOST, async () => {
     console.log('========================================');
-    console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX');
+    console.log('🎯 GOSOK ANGKA BACKEND - RAILWAY v7.6 PHONE ONLY + ONLINE TRACKING');
     console.log('========================================');
     console.log(`✅ Server running on ${HOST}:${PORT}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'production'}`);
     console.log(`📡 Railway URL: ${process.env.RAILWAY_PUBLIC_DOMAIN || 'gosokangka-backend-production-e9fa.up.railway.app'}`);
-    console.log(`🔌 Socket.IO: Enhanced with CORS Fixed + QRIS + Online Tracking + HOTFIX`);
+    console.log(`🔌 Socket.IO: Enhanced with CORS Fixed + QRIS + Online Tracking`);
     console.log(`📊 Database: MongoDB Atlas Complete with QRIS Support`);
     console.log(`🔐 Security: Production ready`);
     console.log(`💰 Admin Panel: 100% Compatible + ALL ENDPOINTS FUNCTIONAL`);
     console.log(`❤️ Health Check: /health (Railway optimized)`);
     console.log(`👤 Default Admin: admin / yusrizal1993`);
-    console.log(`🌐 CORS: Enhanced & Secure configuration + HOTFIX`);
+    console.log(`🌐 CORS: Enhanced & Secure configuration`);
     console.log(`🎯 WIN RATE LOGIC: COMPLETELY FIXED!`);
     console.log(`💳 QRIS PAYMENT: FULLY IMPLEMENTED!`);
     console.log(`📱 PHONE ONLY REGISTRATION: ACTIVE!`);
     console.log(`👥 REALTIME ONLINE TRACKING: ACTIVE!`);
     console.log(`🎁 DAILY TOKEN DISTRIBUTION: AVAILABLE!`);
     console.log(`➕ MANUAL TOKEN ADDITION: AVAILABLE!`);
-    console.log(`🚀 CORS HOTFIX: APPLIED & ACTIVE!`);
     console.log('========================================');
-    console.log('🎉 FEATURES v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX:');
+    console.log('🎉 FEATURES v7.6 PHONE ONLY + ONLINE TRACKING:');
     console.log('   ✅ 📱 PHONE ONLY REGISTRATION - No email required');
     console.log('   ✅ 👥 REALTIME ONLINE USERS TRACKING for admin');
     console.log('   ✅ 🎁 DAILY TOKEN DISTRIBUTION automated & manual');
     console.log('   ✅ ➕ MANUAL TOKEN ADDITION by admin');
-    console.log('   ✅ 🚀 CORS HOTFIX - Allow all origins including null');
-    console.log('   ✅ 🔧 Registration debug endpoint for testing');
-    console.log('   ✅ 🌐 Socket.IO CORS hotfix applied');
     console.log('   ✅ WIN RATE LOGIC completely fixed');
     console.log('   ✅ QRIS Payment System fully implemented');
     console.log('   ✅ QRIS Admin Management available');
@@ -4357,23 +4061,21 @@ server.listen(PORT, HOST, async () => {
     console.log('   ✅ 👥 Admin dashboard shows online users realtime');
     console.log('   ✅ 🎁 Daily distribution of free tokens to active users');
     console.log('   ✅ ➕ Admin can manually add tokens to any user');
-    console.log('   ✅ 🚀 CORS HOTFIX handles null origins & OPTIONS');
     console.log('========================================');
-    console.log('💎 STATUS: PRODUCTION READY - PHONE ONLY + REALTIME ONLINE TRACKING + CORS HOTFIX ✅');
+    console.log('💎 STATUS: PRODUCTION READY - PHONE ONLY + REALTIME ONLINE TRACKING ✅');
     console.log('🔗 Frontend: Ready for gosokangkahoki.com');
     console.log('📱 Mobile: Fully optimized dengan phone only registration');
     console.log('🚀 Performance: Enhanced & optimized');
     console.log('🎯 Admin Panel: 100% Compatible - SEMUA FITUR + ONLINE USERS');
     console.log('💳 Payment: Bank Transfer + QRIS Available');
-    console.log('🌐 CORS: All domains properly supported + HOTFIX');
+    console.log('🌐 CORS: All domains properly supported');
     console.log('🎯 WIN RATE CONTROL: 100% ACCURATE & WORKING!');
     console.log('💳 QRIS PAYMENT: 100% FUNCTIONAL & TESTED!');
     console.log('📱 PHONE REGISTRATION: Simple & Secure!');
     console.log('👥 ONLINE TRACKING: Realtime User Monitoring!');
     console.log('🎁 TOKEN SYSTEM: Automated Daily + Manual Addition!');
-    console.log('🚀 CORS HOTFIX: Fix semua error origin null!');
     console.log('========================================');
-    console.log('🔧 KEY CHANGES v7.6 + CORS HOTFIX:');
+    console.log('🔧 KEY CHANGES v7.6:');
     console.log('   📱 Registration hanya pakai nomor HP (no email)');
     console.log('   👥 Dashboard admin show online users realtime');
     console.log('   🎁 Daily token distribution otomatis midnight');
@@ -4381,38 +4083,28 @@ server.listen(PORT, HOST, async () => {
     console.log('   📞 Phone number formatting & normalization');
     console.log('   🔄 Socket.IO enhanced with online tracking');
     console.log('   ⚡ Realtime updates for admin panel');
-    console.log('   🚀 CORS HOTFIX untuk allow semua origin');
-    console.log('   🔧 Registration debug endpoint /api/auth/register-simple');
-    console.log('   🌐 Socket.IO CORS hotfix untuk fix connection issues');
     console.log('   🎯 All fitur lama tetap functional 100%');
-    console.log('========================================');
-    console.log('🚀 CORS HOTFIX ENDPOINTS:');
-    console.log('   /api/auth/register-simple - Debug registration endpoint');
-    console.log('   /health - Enhanced health check dengan hotfix info');
-    console.log('   /api/health - Detailed system status + hotfix status');
-    console.log('   Socket.IO - Allow all origins termasuk null');
     console.log('========================================');
     
     // Initialize database
-    console.log('🔧 Starting database initialization with PHONE ONLY + ONLINE TRACKING + CORS HOTFIX...');
+    console.log('🔧 Starting database initialization with PHONE ONLY + ONLINE TRACKING...');
     await initializeDatabase();
     
-    logger.info('🚀 Railway server v7.6 PHONE ONLY + ONLINE TRACKING + CORS HOTFIX started successfully - ALL FEATURES ✅', {
+    logger.info('🚀 Railway server v7.6 PHONE ONLY + ONLINE TRACKING started successfully - ALL FEATURES ✅', {
         port: PORT,
         host: HOST,
-        version: '7.6.0-phone-only-online-tracking-cors-hotfix',
+        version: '7.6.0-phone-only-online-tracking',
         database: 'MongoDB Atlas Ready with QRIS',
         admin: 'admin/yusrizal1993',
         adminPanel: '100% Compatible - ALL FEATURES + ONLINE TRACKING',
-        cors: 'Enhanced & Secure + HOTFIX ✅',
+        cors: 'Enhanced & Secure ✅',
         phoneOnlyRegistration: 'ACTIVE - No Email Required ✅',
         onlineUserTracking: 'REALTIME TRACKING ACTIVE ✅',
         dailyTokenDistribution: 'AUTOMATED & MANUAL ✅',
         winRateLogic: 'COMPLETELY FIXED & WORKING ✅',
         qrisPayment: 'FULLY IMPLEMENTED & FUNCTIONAL ✅',
-        corsHotfix: 'APPLIED & ACTIVE - All origins allowed ✅',
-        status: 'PRODUCTION READY - PHONE ONLY + REALTIME ONLINE TRACKING + CORS HOTFIX ✅'
+        status: 'PRODUCTION READY - PHONE ONLY + REALTIME ONLINE TRACKING ✅'
     });
 });
 
-console.log('✅ server.js v7.6 COMPLETE - Railway Production PHONE ONLY + ONLINE TRACKING + CORS HOTFIX!');
+console.log('✅ server.js v7.6 COMPLETE - Railway Production PHONE ONLY + ONLINE TRACKING!');
