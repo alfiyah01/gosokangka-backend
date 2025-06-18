@@ -1192,18 +1192,23 @@ app.get('/', (req, res) => {
 // ========================================
 
 // 📱 UPDATED REGISTRATION - Phone Only
-
-app.post('/api/auth/register', validateUserRegistration, async (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, phoneNumber, password } = req.body;
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
 
+    if (!name || !phoneNumber || !password) {
+      return res.status(400).json({ error: 'Nama, nomor, dan password wajib diisi' });
+    }
+
+    const normalizedPhone = phoneNumber.replace(/\D/g, '').replace(/^0/, '62');
     const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+
     if (existingUser) {
       return res.status(409).json({ error: 'Nomor sudah terdaftar' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = new User({
       name,
       phoneNumber: normalizedPhone,
@@ -1212,15 +1217,13 @@ app.post('/api/auth/register', validateUserRegistration, async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'backup_secret_key');
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'secret-key');
     res.status(201).json({ token, user: newUser });
-
-  } catch (err) {
-    console.error('❌ REGISTER ERROR:', err.message);
-    res.status(500).json({ error: 'Server error: ' + err.message });
+  } catch (error) {
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({ error: 'Terjadi kesalahan server: ' + error.message });
   }
 });
-
         
         if (existingUser) {
             return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
