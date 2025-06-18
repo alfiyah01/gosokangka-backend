@@ -1,6 +1,6 @@
 // ========================================
-// 🚀 GOSOK ANGKA BACKEND - RAILWAY v7.6 PHONE ONLY + ONLINE TRACKING
-// ✅ ALL FEATURES + QRIS PAYMENT SYSTEM + COMPLETE ADMIN PANEL + PHONE ONLY REGISTRATION
+// 🚀 GOSOK ANGKA BACKEND - RAILWAY v8
+// ✅ ALL FEATURES + QRIS PAYMENT SYSTEM + COMPLETE ADMIN PANEL + PHONE & EMAIL REGISTRATION
 // 🔗 Backend URL: gosokangka-backend-production-e9fa.up.railway.app
 // 📊 DATABASE: MongoDB Atlas (gosokangka-db) - Complete Schema
 // 🎯 100% PRODUCTION READY dengan SEMUA FITUR + ADMIN PANEL ENDPOINTS
@@ -620,7 +620,10 @@ console.log('✅ Railway-optimized middleware configured with enhanced CORS');
 // 📱 UPDATED USER SCHEMA - PHONE ONLY
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true, index: true },
-    phoneNumber: { type: String, required: true, unique: true, index: true },
+    phoneNumber: { type: String, index: true },
+    email: { type: String, index: true },
+    identifier: { type: String, required: true, unique: true, index: true },
+    identifierType: { type: String, enum: ['phone', 'email'], required: true },
     password: { type: String, required: true },
     status: { type: String, default: 'active', enum: ['active', 'inactive', 'suspended', 'banned'] },
     scratchCount: { type: Number, default: 0 },
@@ -824,6 +827,14 @@ function normalizePhoneNumber(phone) {
     
     return normalized;
 }
+function normalizeIdentifier(identifier) {
+    if (identifier.includes('@')) {
+        return identifier.toLowerCase().trim();
+    } else {
+        return normalizePhoneNumber(identifier);
+    }
+}
+
 
 function formatPhoneNumber(phone) {
     const normalized = normalizePhoneNumber(phone);
@@ -1194,14 +1205,15 @@ app.get('/', (req, res) => {
 // 📱 UPDATED REGISTRATION - Phone Only
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { name, phoneNumber, password } = req.body;
+        const { name, identifier, password } = req.body;
 
         if (!name || !phoneNumber || !password) {
             return res.status(400).json({ error: 'Nama, nomor HP, dan password wajib diisi' });
         }
 
-        const normalizedPhone = normalizePhoneNumber(phoneNumber);
-        const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+        const isEmail = identifier.includes('@');
+        const normalizedIdentifier = normalizeIdentifier(identifier);
+        const existingUser = await User.findOne({ identifier: normalizedIdentifier });
 
         if (existingUser) {
             return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
@@ -1209,9 +1221,13 @@ app.post('/api/auth/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
+        const isEmail = identifier.includes('@');
         const newUser = new User({
             name: name.trim(),
-            phoneNumber: normalizedPhone,
+            identifier: normalizedIdentifier,
+            identifierType: isEmail ? 'email' : 'phone',
+            phoneNumber: isEmail ? '62000000000' : normalizedIdentifier,
+            email: isEmail ? normalizedIdentifier : `user${Date.now()}@dummy.com`,
             password: hashedPassword,
             freeScratchesRemaining: 1
         });
@@ -1233,7 +1249,10 @@ app.post('/api/auth/register', async (req, res) => {
                 _id: newUser._id,
                 id: newUser._id,
                 name: newUser.name,
-                phoneNumber: formatPhoneNumber(newUser.phoneNumber),
+                phoneNumber: newUser.identifierType === 'phone' ? formatPhoneNumber(newUser.phoneNumber) : null,
+                email: newUser.identifierType === 'email' ? newUser.email : null,
+                identifier: newUser.identifier,
+                identifierType: newUser.identifierType,
                 scratchCount: 0,
                 winCount: 0,
                 status: 'active',
@@ -1252,14 +1271,11 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
     try {
         const { identifier, password } = req.body;
         
-        // Normalize identifier (should be phone number now)
-        const normalizedPhone = normalizePhoneNumber(identifier);
-        
-        // Try to find user by normalized phone or original identifier
-        const user = await User.findOne({
-            phoneNumber: { $in: [identifier, normalizedPhone] }
-        });
-        
+        // Normalize identifier 
+        const isEmail = identifier.includes('@');
+        const normalizedIdentifier = normalizeIdentifier(identifier);
+        const user = await User.findOne({ identifier: normalizedIdentifier });
+
         if (!user) {
             return res.status(400).json({ error: 'Nomor HP atau password salah' });
         }
@@ -1307,7 +1323,10 @@ app.post('/api/auth/login', authRateLimit, validateUserLogin, async (req, res) =
                 _id: user._id,
                 id: user._id,
                 name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
+                phoneNumber: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : null,
+                email: user.identifierType === 'email' ? user.email : null,
+                identifier: user.identifier,
+                identifierType: user.identifierType,
                 scratchCount: user.scratchCount,
                 winCount: user.winCount,
                 status: user.status,
@@ -1405,7 +1424,7 @@ app.post('/api/payment/qris-request', verifyToken, qrisRateLimit, async (req, re
             requestId: qrisRequest._id,
             userId: req.userId,
             userName: user.name,
-            userPhone: formatPhoneNumber(user.phoneNumber),
+            userContact: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : user.email,
             quantity,
             totalAmount,
             pricePerToken,
@@ -1709,7 +1728,7 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, adminRateLimit, async (req
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { phoneNumber: { $regex: search, $options: 'i' } }
+                { identifier: { $regex: search, $options: 'i' } }   
             ];
         }
         
@@ -1724,7 +1743,9 @@ app.get('/api/admin/users', verifyToken, verifyAdmin, adminRateLimit, async (req
         // Format phone numbers for display
         const formattedUsers = users.map(user => ({
             ...user.toObject(),
-            phoneNumber: formatPhoneNumber(user.phoneNumber)
+            phoneNumber: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : null,
+            email: user.identifierType === 'email' ? user.email : null,
+            displayContact: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : user.email
         }));
         
         res.json({
@@ -2274,7 +2295,8 @@ app.get('/api/admin/recent-winners', verifyToken, verifyAdmin, adminRateLimit, a
             ...winner.toObject(),
             userId: {
                 ...winner.userId.toObject(),
-                phoneNumber: formatPhoneNumber(winner.userId.phoneNumber)
+                displayContact: winner.userId.identifierType === 'phone' ?
+                    formatPhoneNumber(winner.userId.phoneNumber) : winner.userId.email
             }
         }));
             
@@ -3074,7 +3096,10 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
         
         res.json({
             ...user.toObject(),
-            phoneNumber: formatPhoneNumber(user.phoneNumber),
+            phoneNumber: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : null,
+            email: user.identifierType === 'email' ? user.email : null,
+            identifier: user.identifier,
+            identifierType: user.identifierType,
             freeScratchesRemaining: user.freeScratchesRemaining || 0,
             paidScratchesRemaining: user.paidScratchesRemaining || 0,
             scratchCount: user.scratchCount || 0,
@@ -3121,7 +3146,7 @@ app.post('/api/user/token-request', verifyToken, async (req, res) => {
             requestId: request._id,
             userId: req.userId,
             userName: user.name,
-            userPhone: formatPhoneNumber(user.phoneNumber),
+            userContact: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : user.email,
             quantity,
             totalAmount,
             pricePerToken,
@@ -3898,7 +3923,10 @@ app.get('/api/debug/win-rate-test/:userId', verifyToken, verifyAdmin, async (req
         res.json({
             user: {
                 name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
+                phoneNumber: user.identifierType === 'phone' ? formatPhoneNumber(user.phoneNumber) : null,
+                email: user.identifierType === 'email' ? user.email : null,
+                identifier: user.identifier,
+                identifierType: user.identifierType,
                 customWinRate: user.customWinRate,
                 globalWinRate: settings.winProbability
             },
@@ -4056,12 +4084,12 @@ server.listen(PORT, HOST, async () => {
     console.log('🌐 CORS: All domains properly supported');
     console.log('🎯 WIN RATE CONTROL: 100% ACCURATE & WORKING!');
     console.log('💳 QRIS PAYMENT: 100% FUNCTIONAL & TESTED!');
-    console.log('📱 PHONE REGISTRATION: Simple & Secure!');
+    console.log('📱📧 FLEXIBLE REGISTRATION: Phone & Email Support!');
     console.log('👥 ONLINE TRACKING: Realtime User Monitoring!');
     console.log('🎁 TOKEN SYSTEM: Automated Daily + Manual Addition!');
     console.log('========================================');
     console.log('🔧 KEY CHANGES v7.6:');
-    console.log('   📱 Registration hanya pakai nomor HP (no email)');
+    console.log('   📱 Registrati pakai nomor HP dan no email');
     console.log('   👥 Dashboard admin show online users realtime');
     console.log('   🎁 Daily token distribution otomatis midnight');
     console.log('   ➕ Admin bisa add token manual ke user');
@@ -4083,7 +4111,7 @@ server.listen(PORT, HOST, async () => {
         admin: 'admin/yusrizal1993',
         adminPanel: '100% Compatible - ALL FEATURES + ONLINE TRACKING',
         cors: 'Enhanced & Secure ✅',
-        phoneOnlyRegistration: 'ACTIVE - No Email Required ✅',
+        flexibleRegistration: 'PHONE & EMAIL SUPPORT ✅',
         onlineUserTracking: 'REALTIME TRACKING ACTIVE ✅',
         dailyTokenDistribution: 'AUTOMATED & MANUAL ✅',
         winRateLogic: 'COMPLETELY FIXED & WORKING ✅',
