@@ -1178,56 +1178,157 @@ app.get('/', (req, res) => {
 // ========================================
 
 // 📱 UPDATED REGISTRATION - Phone Only
-app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (req, res) => {
+app.post('/api/auth/register', authRateLimit, async (req, res) => {
     try {
+        console.log('🔧 [REGISTER] Request received:', {
+            body: req.body,
+            headers: {
+                origin: req.headers.origin,
+                'content-type': req.headers['content-type'],
+                'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
+            }
+        });
+
         const { name, password, phoneNumber } = req.body;
         
-        // Normalize phone number
-        const normalizedPhone = normalizePhoneNumber(phoneNumber);
-        
-        // Check if phone number already exists
-        const existingUser = await User.findOne({
-            phoneNumber: { $in: [phoneNumber, normalizedPhone] }
-        });
-        
-        if (existingUser) {
-            return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
+        // Enhanced validation
+        if (!name || !password || !phoneNumber) {
+            console.log('❌ [REGISTER] Missing required fields');
+            return res.status(400).json({ 
+                error: 'Semua field harus diisi',
+                details: {
+                    name: !name ? 'required' : 'ok',
+                    password: !password ? 'required' : 'ok',
+                    phoneNumber: !phoneNumber ? 'required' : 'ok'
+                }
+            });
+        }
+
+        if (name.trim().length < 2) {
+            return res.status(400).json({ error: 'Nama minimal 2 karakter' });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password minimal 6 karakter' });
+        }
+
+        // Enhanced phone validation
+        let normalizedPhone;
+        try {
+            normalizedPhone = normalizePhoneNumber(phoneNumber);
+            console.log('📱 [REGISTER] Phone normalized:', phoneNumber, '->', normalizedPhone);
+        } catch (phoneError) {
+            console.error('❌ [REGISTER] Phone normalization error:', phoneError);
+            return res.status(400).json({ error: 'Format nomor HP tidak valid' });
+        }
+
+        // Validate normalized phone
+        if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+            return res.status(400).json({ error: 'Nomor HP tidak valid (10-15 digit)' });
+        }
+
+        if (!normalizedPhone.startsWith('62')) {
+            return res.status(400).json({ error: 'Nomor HP harus format Indonesia (+62)' });
+        }
+
+        // Check database connection
+        if (mongoose.connection.readyState !== 1) {
+            console.error('❌ [REGISTER] Database not connected');
+            return res.status(500).json({ error: 'Database tidak terkoneksi, coba lagi sebentar' });
+        }
+
+        // Check existing user with better error handling
+        let existingUser;
+        try {
+            existingUser = await User.findOne({
+                phoneNumber: { $in: [phoneNumber, normalizedPhone] }
+            });
+            console.log('🔍 [REGISTER] Existing user check:', existingUser ? 'FOUND' : 'NOT_FOUND');
+        } catch (dbError) {
+            console.error('❌ [REGISTER] Database query error:', dbError);
+            return res.status(500).json({ error: 'Error checking existing user' });
         }
         
-        const hashedPassword = await bcrypt.hash(password, 12);
+        if (existingUser) {
+            console.log('❌ [REGISTER] Phone already registered');
+            return res.status(400).json({ error: 'Nomor HP sudah terdaftar. Silakan gunakan nomor lain atau login.' });
+        }
         
-        const user = new User({
+        // Hash password with error handling
+        let hashedPassword;
+        try {
+            hashedPassword = await bcrypt.hash(password, 12);
+            console.log('🔐 [REGISTER] Password hashed successfully');
+        } catch (hashError) {
+            console.error('❌ [REGISTER] Password hashing error:', hashError);
+            return res.status(500).json({ error: 'Error processing password' });
+        }
+        
+        // Create user with comprehensive error handling
+        const userData = {
             name: name.trim(),
             phoneNumber: normalizedPhone,
             password: hashedPassword,
             freeScratchesRemaining: 1,
+            paidScratchesRemaining: 0,
             totalSpent: 0,
             totalWon: 0,
             lastActiveDate: new Date(),
             isOnline: false,
-            lastOnlineDate: new Date()
-        });
-        
-        await user.save();
-        
-        socketManager.broadcastNewUser({
-            user: {
-                _id: user._id,
-                name: user.name,
-                phoneNumber: formatPhoneNumber(user.phoneNumber),
-                createdAt: user.createdAt
+            lastOnlineDate: new Date(),
+            scratchCount: 0,
+            winCount: 0,
+            status: 'active'
+        };
+
+        let user;
+        try {
+            user = new User(userData);
+            await user.save();
+            console.log('✅ [REGISTER] User created successfully:', user._id);
+        } catch (saveError) {
+            console.error('❌ [REGISTER] User save error:', saveError);
+            
+            if (saveError.code === 11000) {
+                // Duplicate key error
+                return res.status(400).json({ error: 'Nomor HP sudah terdaftar (duplikasi)' });
             }
-        });
+            
+            return res.status(500).json({ 
+                error: 'Error creating user account',
+                details: process.env.NODE_ENV === 'development' ? saveError.message : 'Please try again'
+            });
+        }
         
-        const token = jwt.sign(
-            { userId: user._id, userType: 'user' },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
+        // Generate JWT with error handling
+        let token;
+        try {
+            token = jwt.sign(
+                { userId: user._id, userType: 'user' },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            console.log('🎫 [REGISTER] JWT generated successfully');
+        } catch (jwtError) {
+            console.error('❌ [REGISTER] JWT generation error:', jwtError);
+            return res.status(500).json({ error: 'Error generating authentication token' });
+        }
         
-        logger.info('User registered:', formatPhoneNumber(user.phoneNumber));
+        // Broadcast new user (with error handling)
+        try {
+            socketManager.broadcastNewUser({
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    phoneNumber: formatPhoneNumber(user.phoneNumber),
+                    createdAt: user.createdAt
+                }
+            });
+        } catch (socketError) {
+            console.warn('⚠️ [REGISTER] Socket broadcast failed (non-critical):', socketError.message);
+        }
         
-        res.status(201).json({
+        const responseData = {
             message: 'Registration successful',
             token,
             user: {
@@ -1235,49 +1336,79 @@ app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (r
                 id: user._id,
                 name: user.name,
                 phoneNumber: formatPhoneNumber(user.phoneNumber),
-                scratchCount: user.scratchCount,
-                winCount: user.winCount,
-                status: user.status,
-                freeScratchesRemaining: user.freeScratchesRemaining,
-                paidScratchesRemaining: user.paidScratchesRemaining
+                scratchCount: user.scratchCount || 0,
+                winCount: user.winCount || 0,
+                status: user.status || 'active',
+                freeScratchesRemaining: user.freeScratchesRemaining || 0,
+                paidScratchesRemaining: user.paidScratchesRemaining || 0
             }
-        });
+        };
+
+        console.log('✅ [REGISTER] Registration completed successfully for:', user.name);
+        
+        res.status(201).json(responseData);
+        
     } catch (error) {
-        logger.error('Register error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('❌ [REGISTER] Unexpected error:', error);
+        
+        res.status(500).json({
+            error: 'Server error during registration',
+            message: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later',
+            timestamp: new Date().toISOString()
+        });
     }
 });
 
 // 🔧 REGISTRATION DEBUG ENDPOINT - Temporary
 app.post('/api/auth/register-simple', async (req, res) => {
     try {
-        console.log('🔧 [DEBUG] Simple registration test:', JSON.stringify(req.body, null, 2));
+        console.log('🔧 [REGISTER] Request received:', {
+            body: req.body,
+            headers: {
+                origin: req.headers.origin,
+                'content-type': req.headers['content-type'],
+                'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
+            }
+        });
         
         const { name, password, phoneNumber } = req.body;
         
         // Basic validation
         if (!name || !password || !phoneNumber) {
-            console.log('❌ [DEBUG] Missing required fields');
+            console.log('❌ [REGISTER] Missing required fields');
             return res.status(400).json({ 
                 error: 'Semua field harus diisi',
-                received: { name: !!name, password: !!password, phoneNumber: !!phoneNumber }
+                details: {
+                    name: !name ? 'required' : 'ok',
+                    password: !password ? 'required' : 'ok',
+                    phoneNumber: !phoneNumber ? 'required' : 'ok'   
+                }
             });
         }
         
+        if (name.trim().length < 2) {
+            return res.status(400).json({ error: 'Nama minimal 2 karakter' });
+        }
+
         if (password.length < 6) {
-            console.log('❌ [DEBUG] Password too short');
             return res.status(400).json({ error: 'Password minimal 6 karakter' });
         }
         
         // Check database
         if (mongoose.connection.readyState !== 1) {
-            console.log('❌ [DEBUG] Database not connected');
-            return res.status(500).json({ error: 'Database tidak terkoneksi' });
+            console.error('❌ [REGISTER] Database not connected');
+            return res.status(500).json({ error: 'Database tidak terkoneksi, coba lagi sebentar' });
         }
         
         // Phone normalization
-        const normalizedPhone = normalizePhoneNumber(phoneNumber);
-        console.log('📱 [DEBUG] Phone normalized:', phoneNumber, '->', normalizedPhone);
+        let normalizedPhone;
+        try {
+            normalizedPhone = normalizePhoneNumber(phoneNumber);
+            console.log('📱 [REGISTER] Phone normalized:', phoneNumber, '->', normalizedPhone);
+        } catch (phoneError) {
+            console.error('❌ [REGISTER] Phone normalization error:', phoneError);
+            return res.status(400).json({ error: 'Format nomor HP tidak valid' });
+        }
         
         // Check existing user
         const existingUser = await User.findOne({
@@ -1285,13 +1416,17 @@ app.post('/api/auth/register-simple', async (req, res) => {
         });
         
         if (existingUser) {
-            console.log('❌ [DEBUG] Phone already registered');
-            return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
+            console.log('❌ [REGISTER] Phone already registered');
+            return res.status(400).json({ error: 'Nomor HP sudah terdaftar. Silakan gunakan nomor lain atau login.' });
         }
         
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
-        console.log('🔐 [DEBUG] Password hashed successfully');
+        console.log('🔐 [REGISTER] Password hashed successfully');
+        } catch (hashError) {
+            console.error('❌ [REGISTER] Password hashing error:', hashError);
+            return res.status(500).json({ error: 'Error processing password' });
+        }
         
         // Create user
         const user = new User({
@@ -4060,6 +4195,34 @@ app.get('/api/debug/system-info', verifyToken, verifyAdmin, (req, res) => {
         },
         onlineUsers: getOnlineUsers()
     });
+});
+
+app.get('/api/debug/registration-test', async (req, res) => {
+    try {
+        const tests = {
+            database: mongoose.connection.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED',
+            collections: Object.keys(mongoose.connection.collections),
+            userCount: await User.countDocuments(),
+            phoneNormalizationTest: {
+                '08123456789': normalizePhoneNumber('08123456789'),
+                '8123456789': normalizePhoneNumber('8123456789'),
+                '628123456789': normalizePhoneNumber('628123456789')
+            },
+            jwtSecret: process.env.JWT_SECRET ? 'SET' : 'MISSING',
+            bcryptTest: await bcrypt.hash('test123', 12) ? 'WORKING' : 'FAILED'
+        };
+
+        res.json({
+            status: 'Registration system test',
+            timestamp: new Date().toISOString(),
+            tests
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Test failed',
+            details: error.message
+        });
+    }
 });
 
 // ========================================
