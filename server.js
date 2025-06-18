@@ -1192,17 +1192,35 @@ app.get('/', (req, res) => {
 // ========================================
 
 // 📱 UPDATED REGISTRATION - Phone Only
-app.post('/api/auth/register', authRateLimit, validateUserRegistration, async (req, res) => {
-    try {
-        const { name, password, phoneNumber } = req.body;
-        
-        // Normalize phone number
-        const normalizedPhone = normalizePhoneNumber(phoneNumber);
-        
-        // Check if phone number already exists
-        const existingUser = await User.findOne({
-            phoneNumber: { $in: [phoneNumber, normalizedPhone] }
-        });
+
+app.post('/api/auth/register', validateUserRegistration, async (req, res) => {
+  try {
+    const { name, phoneNumber, password } = req.body;
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Nomor sudah terdaftar' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({
+      name,
+      phoneNumber: normalizedPhone,
+      password: hashedPassword
+    });
+
+    await newUser.save();
+
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || 'backup_secret_key');
+    res.status(201).json({ token, user: newUser });
+
+  } catch (err) {
+    console.error('❌ REGISTER ERROR:', err.message);
+    res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
         
         if (existingUser) {
             return res.status(400).json({ error: 'Nomor HP sudah terdaftar' });
